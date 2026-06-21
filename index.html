@@ -21,7 +21,7 @@
   .btn:hover{filter:brightness(.96)}
   .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
   .spacer{flex:1}
-  .main{flex:1;display:flex;overflow:hidden;position:relative}
+  .main{flex:1;min-height:0;display:flex;overflow:hidden;position:relative}
 
   #library{flex:1;overflow:auto;padding:22px}
   .shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:18px;max-width:1100px;margin:0 auto}
@@ -101,7 +101,7 @@
   @media(max-width:760px){ #panelToggle{display:none!important} }
   #transPop{position:fixed;max-width:340px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:14px;line-height:1.6;box-shadow:0 6px 20px rgba(0,0,0,.2);z-index:90}
   #transPop .tpc{font-size:11px;color:var(--muted);margin-bottom:3px}
-  #refDock{width:320px;min-width:200px;background:var(--panel);border-right:1px solid var(--line);display:none;flex-direction:column;position:relative}
+  #refDock{width:320px;min-width:200px;background:var(--panel);border-right:1px solid var(--line);display:none;flex-direction:column;position:relative;overflow:hidden;min-height:0;align-self:stretch}
   body.refon #refDock{display:flex}
   #refToggle{display:none;position:absolute;top:50%;transform:translateY(-50%);z-index:70;background:var(--panel);border:1px solid var(--line);border-left:none;border-radius:0 9px 9px 0;width:22px;height:52px;cursor:pointer;color:var(--muted);font-size:15px;box-shadow:2px 0 7px rgba(0,0,0,.07);left:0}
   body.reading #refToggle{display:block}
@@ -109,7 +109,7 @@
   .rdhead button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px}
   .rdbody{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:8px;display:flex;flex-direction:column;gap:8px}
   #refDock.collapsed .rdbody{display:none}
-  .refItem{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}
+  .refItem{flex:0 0 auto;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}
   .refItem .rh{display:flex;align-items:center;gap:4px;padding:2px 4px;background:var(--accent2)}
   .refItem .rh span{flex:1;font-size:11px;color:var(--muted);padding-left:4px}
   .refItem .rh button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 6px}
@@ -119,6 +119,8 @@
   #rdResize{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:ew-resize;z-index:5}
   #snipBox{position:fixed;border:2px solid var(--accent);background:rgba(79,70,229,.16);z-index:80;pointer-events:none;border-radius:2px}
   body.snip #viewer{cursor:crosshair}
+  body.snip{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+  body.snip #viewer, body.snip #viewer *{touch-action:none!important}
   #snipHint{display:none;position:fixed;top:54px;left:50%;transform:translateX(-50%);z-index:85;background:#23262d;color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;box-shadow:0 3px 10px rgba(0,0,0,.3)}
   body.snip #snipHint{display:block}
   #banner{display:none;background:#fde68a;color:#7c5700;padding:7px 12px;font-size:12.5px;text-align:center}
@@ -126,7 +128,9 @@
     #panel{position:absolute;inset:0;width:100%;z-index:60;transform:translateX(100%);transition:.25s}
     #panel.open{transform:none}
     .desk-only{display:none}
-    header{padding:7px 8px;gap:5px}
+    .main{order:1}
+    header{order:2;padding:7px 8px;gap:6px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;border-top:1px solid var(--line);border-bottom:none;z-index:55}
+    header>*{flex-shrink:0}
     header h1{font-size:0;flex:0 0 auto}
     header h1::before{content:"📖";font-size:19px}
     #titleEl{display:none}
@@ -140,8 +144,9 @@
     /* 16px 防止 iOS 聚焦输入框时自动放大 */
     .ask input,#findInput,#pageInput,.card2 input,.card2 select,.scope select{font-size:16px}
     #refToggle{display:none!important}
-    #refDock{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto!important;min-width:0;height:44vh;border-right:none;border-top:1px solid var(--line);z-index:65;box-shadow:0 -3px 12px rgba(0,0,0,.15)}
-    #refDock.collapsed{height:auto}
+    #refDock{position:fixed;inset:0;width:auto!important;min-width:0;height:auto;border:none;z-index:66;display:flex!important;flex-direction:column;transform:translateX(-100%);transition:transform .25s}
+    body.refon #refDock{transform:none}
+    #refDock.collapsed .rdbody{display:flex}
     #rdResize{display:none}
   }
   .mobile-only{display:none}
@@ -170,13 +175,14 @@
   </span>
   <button class="btn" id="langBtn">EN</button>
   <button class="btn" id="themeBtn">🌗</button>
+  <button class="btn mobile-only" id="refMobileBtn" style="display:none">📌</button>
   <button class="btn mobile-only" id="togglePanel" style="display:none">AI</button>
   <button class="btn" id="settingsBtn">⚙</button>
 </header>
 
 <div class="main">
   <div id="refDock">
-    <div class="rdhead"><span data-i18n="refTitle">参考</span><div class="spacer"></div><button id="rdCollapse" title="收起/展开">▾</button></div>
+    <div class="rdhead"><span data-i18n="refTitle">参考</span><div class="spacer"></div><button id="rdClear" title="清空全部 / Clear all">🗑</button><button id="rdCollapse" class="desk-only" title="收起/展开">▾</button><button id="rdClose" class="mobile-only" title="关闭">×</button></div>
     <div class="rdbody" id="rdBody"></div>
     <div id="rdResize"></div>
   </div>
@@ -275,7 +281,7 @@ const $ = s => document.querySelector(s);
 
 /* ---------- i18n ---------- */
 const I18N={
-  zh:{ appName:"📖 问读", shelf:"书架", bookmarkBtn:"🔖 书签", bmWord:" 书签", snipWord:" 截取", snipHint:"拖动框选要问的区域，松手即问AI（再点📷退出）", imgTag:"📷 截图", refTitle:"📌 参考", addPdf:"添加 PDF",
+  zh:{ appName:"📖 问读", shelf:"书架", bookmarkBtn:"🔖 书签", bmWord:" 书签", snipWord:" 截取", snipHint:"拖动框选要问的区域，松手即问AI（再点📷退出）", imgTag:"📷 截图", refTitle:"📌 参考", clearRefConfirm:"清空所有参考截图？", addPdf:"添加 PDF",
     tabAI:"💬 AI", tabFind:"🔎 找页", tabNotes:"✏️ 笔记", tabMarks:"🔖 书签",
     findPh:"描述要找的内容，如：讲注意力机制的部分", findBtn:"找",
     scopeLabel:"范围：", scopeSel:"选中文字", scopePage:"当前页", scopeBook:"整本书",
@@ -301,7 +307,7 @@ const I18N={
     pExplain:"请用通俗易懂的方式解释下面这段文字，并多举具体例子帮助理解：",
     pTranslate:"请把下面这段文字翻译成中文：", pSummary:"请用一两句话总结下面这段文字的核心意思："
   },
-  en:{ appName:"📖 AskRead", shelf:"Library", bookmarkBtn:"🔖 Bookmark", bmWord:" Bookmark", snipWord:" Snip", snipHint:"Drag to box the area, release to ask AI (tap 📷 to exit)", imgTag:"📷 Snippet", refTitle:"📌 References", addPdf:"Add PDF",
+  en:{ appName:"📖 AskRead", shelf:"Library", bookmarkBtn:"🔖 Bookmark", bmWord:" Bookmark", snipWord:" Snip", snipHint:"Drag to box the area, release to ask AI (tap 📷 to exit)", imgTag:"📷 Snippet", refTitle:"📌 References", clearRefConfirm:"Clear all reference snippets?", addPdf:"Add PDF",
     tabAI:"💬 AI", tabFind:"🔎 Find", tabNotes:"✏️ Notes", tabMarks:"🔖 Marks",
     findPh:"Describe what you want, e.g. the part on attention", findBtn:"Find",
     scopeLabel:"Scope:", scopeSel:"Selection", scopePage:"This page", scopeBook:"Whole book",
@@ -442,7 +448,7 @@ async function openBookData(book,buf,st){
   curState.bookmarks=curState.bookmarks||[]; curState.highlights=curState.highlights||[]; curState.chat=curState.chat||[];
   pdfDoc=await pdfjsLib.getDocument({data:buf.slice(0)}).promise;
   $('#library').style.display='none'; $('#reader').style.display='flex'; document.body.classList.add('reading');
-  $('#readerTools').style.display=''; $('#togglePanel').style.display='';
+  $('#readerTools').style.display=''; $('#togglePanel').style.display=''; $('#refMobileBtn').style.display='';
   $('#pageNav').style.display='flex'; $('#pageTotal').textContent='/ '+pdfDoc.numPages;
   $('#pageInput').max=pdfDoc.numPages; $('#pageInput').value=st.lastPage||1;
   $('#titleEl').textContent=book.name;
@@ -500,7 +506,7 @@ $('#zoomIn').onclick=()=>{cfg.zoom=Math.min(2.5,cfg.zoom+0.15);localStorage.setI
 $('#zoomOut').onclick=()=>{cfg.zoom=Math.max(0.6,cfg.zoom-0.15);localStorage.setItem('air_zoom',cfg.zoom);layoutPages();};
 
 $('#shelfBtn').onclick=()=>{ $('#reader').style.display='none'; $('#library').style.display='block'; document.body.classList.remove('reading');
-  $('#readerTools').style.display='none'; $('#togglePanel').style.display='none'; $('#pageNav').style.display='none'; $('#titleEl').textContent='';
+  $('#readerTools').style.display='none'; $('#togglePanel').style.display='none'; $('#refMobileBtn').style.display='none'; $('#pageNav').style.display='none'; $('#titleEl').textContent=''; document.body.classList.remove('refon');
   clearRefDock(); pdfDoc=null; curBook=null; renderShelf(); };
 
 /* ---------- theme + language ---------- */
@@ -585,9 +591,11 @@ function setSnip(on){
 }
 $('#snipBtn').onclick=()=>{ if(!pdfDoc)return; bar.style.display='none'; setSnip(!snipActive); };
 $('#viewer').addEventListener('pointerdown',e=>{ if(!snipActive)return; e.preventDefault();
+  try{ $('#viewer').setPointerCapture(e.pointerId); }catch(_){}
   snipSX=e.clientX; snipSY=e.clientY; snipBox=document.createElement('div'); snipBox.id='snipBox'; document.body.appendChild(snipBox); drawSnip(e.clientX,e.clientY); });
-window.addEventListener('pointermove',e=>{ if(snipActive&&snipBox){ e.preventDefault(); drawSnip(e.clientX,e.clientY); } });
+window.addEventListener('pointermove',e=>{ if(snipActive&&snipBox){ e.preventDefault(); drawSnip(e.clientX,e.clientY); } },{passive:false});
 window.addEventListener('pointerup',()=>{ if(snipActive&&snipBox) finishSnip(); });
+window.addEventListener('pointercancel',()=>{ if(snipBox){ snipBox.remove(); snipBox=null; } });
 function drawSnip(x,y){ const l=Math.min(snipSX,x),tp=Math.min(snipSY,y); snipBox.style.left=l+'px'; snipBox.style.top=tp+'px'; snipBox.style.width=Math.abs(x-snipSX)+'px'; snipBox.style.height=Math.abs(y-snipSY)+'px'; }
 function finishSnip(){
   const r=snipBox.getBoundingClientRect(); snipBox.remove(); snipBox=null; setSnip(false);
@@ -613,11 +621,14 @@ function cropRegion(r){
 /* ---------- reference dock (pinned snippets) ---------- */
 function syncRefToggle(){ const tg=$('#refToggle'); const on=document.body.classList.contains('refon'); tg.textContent=on?'‹':'›'; tg.style.left=on?($('#refDock').offsetWidth+'px'):'0'; }
 $('#refToggle').onclick=()=>{ document.body.classList.toggle('refon'); syncRefToggle(); };
+$('#refMobileBtn').onclick=()=>{ document.body.classList.toggle('refon'); };
+$('#rdClose').onclick=()=>document.body.classList.remove('refon');
 function clearRefDock(){ document.body.classList.remove('refon'); $('#rdBody').innerHTML=''; syncRefToggle(); }
 function renderPins(){
   const body=$('#rdBody'); body.innerHTML='';
   const pins=(curState&&curState.pins)||[];
-  if(pins.length) document.body.classList.add('refon'); else document.body.classList.remove('refon');
+  if(window.innerWidth>760){ if(pins.length) document.body.classList.add('refon'); else document.body.classList.remove('refon'); }
+  else if(!pins.length) document.body.classList.remove('refon');
   pins.forEach(p=>{
     const it=document.createElement('div'); it.className='refItem';
     const rh=document.createElement('div'); rh.className='rh';
@@ -630,8 +641,9 @@ function renderPins(){
   });
   syncRefToggle();
 }
-function addPin(image,page){ curState.pins=curState.pins||[]; curState.pins.push({id:'pin'+Date.now(),image,page:page||0}); saveState(); document.body.classList.add('refon'); $('#refDock').classList.remove('collapsed'); renderPins(); syncRefToggle(); }
+function addPin(image,page){ curState.pins=curState.pins||[]; curState.pins.push({id:'pin'+Date.now(),image,page:page||0}); saveState(); if(window.innerWidth>760)document.body.classList.add('refon'); $('#refDock').classList.remove('collapsed'); renderPins(); syncRefToggle(); }
 $('#rdCollapse').onclick=()=>$('#refDock').classList.toggle('collapsed');
+$('#rdClear').onclick=()=>{ if(!curState||!(curState.pins&&curState.pins.length))return; if(!confirm(t('clearRefConfirm')))return; curState.pins=[]; saveState(); renderPins(); };
 $('#rdResize').addEventListener('pointerdown',e=>{ e.preventDefault(); const sx=e.clientX, sw=$('#refDock').offsetWidth;
   const mv=ev=>{ $('#refDock').style.width=Math.max(180,Math.min(window.innerWidth*0.6,sw+(ev.clientX-sx)))+'px'; syncRefToggle(); };
   const up=()=>{ document.removeEventListener('pointermove',mv); document.removeEventListener('pointerup',up); };
