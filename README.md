@@ -19,11 +19,13 @@ English · [中文](README.zh.md)
 ## ✨ What you get
 
 - 🖱️ **Select-to-ask** — highlight text → Explain · Translate · Summarize · Highlight · Ask
+- 📷 **Snip-to-ask** — box any area (figures, formulas, scans) and ask AI about the image
+- 📌 **Pin references** — keep a snippet from page 5 floating beside you while you read page 50
+- 🌐 **Inline translation** — the translation pops up right next to the original text
+- 🔎 **AI page finder** — describe what you want, it jumps you there
 - 📚 **Bookshelf** for multiple PDFs, with covers and progress
 - 🔖 **Resume + bookmarks + highlights** with notes, all saved
-- 🔎 **AI page finder** — describe what you want, it jumps you there
-- 🎯 Ask about the **selection, the page, or the whole book**
-- 💬 Separate **chat history per book**
+- 🎯 Ask about the **selection, the page, or the whole book** · 💬 chat history per book
 - 🌗 Light / sepia / dark · 🌐 English & 中文 · 📱 phone + desktop
 
 ## 🚀 Use it
