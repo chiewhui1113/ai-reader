@@ -129,10 +129,10 @@
     #panel.open{transform:none}
     .desk-only{display:none}
     .main{order:1}
-    header{order:2;padding:7px 8px;gap:6px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;border-top:1px solid var(--line);border-bottom:none;z-index:55}
+    header{order:2;padding:8px 10px;padding-bottom:calc(8px + env(safe-area-inset-bottom));gap:8px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:space-between;border-top:1px solid var(--line);border-bottom:none;z-index:55}
     header>*{flex-shrink:0}
-    header h1{font-size:0;flex:0 0 auto}
-    header h1::before{content:"📖";font-size:19px}
+    header h1{display:none}
+    header .spacer{display:none}
     #titleEl{display:none}
     #langBtn{display:none}
     .btn{padding:7px 9px;font-size:13px}
@@ -524,7 +524,7 @@ const bar=$('#floatBar');
 document.addEventListener('mouseup',()=>setTimeout(updateBar,10));
 document.addEventListener('touchend',()=>setTimeout(updateBar,10));
 function updateBar(){
-  if(snipActive)return;
+  if(snipActive||pendingImage)return;
   const sel=window.getSelection(); const tt=sel.toString().trim();
   if(tt.length>0 && $('#reader').style.display!=='none'){
     pendingImage=null; explainPending=false; bar.querySelector('[data-act=highlight]').style.display=''; bar.querySelector('[data-act=pin]').style.display='none';
