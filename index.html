@@ -251,7 +251,7 @@ const I18N={
     chatGreet:"你好！选中书里的文字可以解释/翻译/总结/高亮；也能在下面切换范围问「当前页」或「整本书」。",
     thinking:"思考中…", errPrefix:"出错：", netErr:"网络错误：", noReturn:"(无返回)",
     needKey:"请先在设置里填入免费 API Key。", findThinking:"AI 正在通读全书定位…",
-    findNone:"没找到明显相关的页，换个说法再试试。",
+    findNone:"没找到明显相关的页，换个说法再试试。", findMore:"🔄 都不对？找更多", findNoMore:"没有更多相关页了。",
     notesEmpty:"选中文字后点 🖍 高亮，可加笔记。这里会列出本书所有高亮和笔记。",
     marksEmpty:"点工具栏 🔖 把当前页加入书签。",
     notePrompt:"给这段高亮加条笔记（可留空）：", delConfirm:"删除这本书及其笔记？",
@@ -277,7 +277,7 @@ const I18N={
     chatGreet:"Hi! Select any text to explain / translate / summarize / highlight it, or switch scope below to ask about this page or the whole book.",
     thinking:"Thinking…", errPrefix:"Error: ", netErr:"Network error: ", noReturn:"(no response)",
     needKey:"Please add a free API key in Settings first.", findThinking:"AI is scanning the book…",
-    findNone:"No clearly relevant page found. Try rephrasing.",
+    findNone:"No clearly relevant page found. Try rephrasing.", findMore:"🔄 Not it? Find more", findNoMore:"No more relevant pages.",
     notesEmpty:"Select text and tap 🖍 Highlight to add a note. All highlights and notes for this book show up here.",
     marksEmpty:"Tap 🔖 in the toolbar to bookmark the current page.",
     notePrompt:"Add a note for this highlight (optional):", delConfirm:"Delete this book and its notes?",
@@ -606,21 +606,36 @@ async function ask(instruction, context, isBook){
 }
 
 /* ---------- AI 找页 / find page ---------- */
-$('#findBtn').onclick=doFind;
-$('#findInput').addEventListener('keydown',e=>{if(e.key==='Enter')doFind();});
-async function doFind(){
+let findShown=new Set();
+$('#findBtn').onclick=()=>doFind(false);
+$('#findInput').addEventListener('keydown',e=>{if(e.key==='Enter')doFind(false);});
+function addFindResult(box,it){
+  const p=Math.max(1,Math.min(pdfDoc.numPages,it.page));
+  const d=document.createElement('div'); d.className='bm';
+  d.innerHTML=t('findPage')(p)+(it.reason?'<div class="n" style="font-style:italic;color:var(--muted);font-size:12px;margin-top:4px">'+escapeHtml(it.reason)+'</div>':'');
+  d.onclick=()=>jumpToPage(p); box.appendChild(d);
+}
+function addMoreBtn(box){
+  const b=document.createElement('button'); b.className='btn'; b.style.marginTop='4px'; b.textContent=t('findMore');
+  b.onclick=()=>doFind(true); box.appendChild(b);
+}
+async function doFind(more){
   const q=$('#findInput').value.trim(); if(!q||!pdfDoc)return;
   if(!cfg.key){ openModal(); return; }
-  const box=$('#findResults'); box.innerHTML='<div class="empty-hint">'+t('findThinking')+'</div>';
+  const box=$('#findResults');
+  if(!more){ findShown=new Set(); box.innerHTML='<div class="empty-hint">'+t('findThinking')+'</div>'; }
+  else { const old=box.querySelector('button'); if(old){old.textContent=t('findThinking');old.disabled=true;} }
   await buildPageTexts();
   const terms=q.toLowerCase().split(/[\s，,、。.]+/).filter(w=>w.length>1);
-  const scored=[]; for(let i=1;i<pageTexts.length;i++){ const low=pageTexts[i].toLowerCase(); let s=0; terms.forEach(tm=>{ if(low.includes(tm))s++; }); scored.push([i,s]); }
+  const scored=[]; for(let i=1;i<pageTexts.length;i++){ if(findShown.has(i))continue; const low=pageTexts[i].toLowerCase(); let s=0; terms.forEach(tm=>{ if(low.includes(tm))s++; }); scored.push([i,s]); }
   scored.sort((a,b)=>b[1]-a[1]);
   let cand=scored.filter(x=>x[1]>0).slice(0,30).map(x=>x[0]);
-  if(cand.length<3) cand=scored.slice(0,Math.min(40,pageTexts.length-1)).map(x=>x[0]);
+  if(cand.length<3) cand=scored.slice(0,Math.min(40,scored.length)).map(x=>x[0]);
   cand.sort((a,b)=>a-b);
+  if(!cand.length){ if(more){const old=box.querySelector('button'); if(old)old.replaceWith(Object.assign(document.createElement('div'),{className:'empty-hint',textContent:t('findNoMore')}));} else box.innerHTML='<div class="empty-hint">'+t('findNone')+'</div>'; return; }
   let ctx=''; for(const p of cand){ ctx+='[Page '+p+'] '+pageTexts[p].slice(0,1200)+'\n'; if(ctx.length>110000)break; }
-  const sys='You locate pages in a book. Given the user query and page-tagged text, return the most relevant pages by relevance. Output ONLY a JSON array, each item {"page":number,"reason":"one short sentence in '+cfg.lang+' on what that page covers"}, max 5 items, no other text.';
+  const excl=findShown.size? (' Do NOT return any of these already-shown pages: '+[...findShown].join(', ')+'.'):'';
+  const sys='You locate pages in a book. Given the user query and page-tagged text, return the most relevant pages by relevance.'+excl+' Output ONLY a JSON array, each item {"page":number,"reason":"one short sentence in '+cfg.lang+' on what that page covers"}, max 5 items, no other text.';
   try{
     const url='https://generativelanguage.googleapis.com/v1beta/models/'+cfg.model+':generateContent?key='+encodeURIComponent(cfg.key);
     const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'}, body:JSON.stringify({system_instruction:{parts:[{text:sys}]},contents:[{parts:[{text:'Query: '+q+'\n\n'+ctx}]}]})});
@@ -628,12 +643,11 @@ async function doFind(){
     if(data.error){ box.innerHTML='<div class="empty-hint">'+t('errPrefix')+escapeHtml(data.error.message)+'</div>'; return; }
     let out=(data?.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||'').trim().replace(/```json/gi,'').replace(/```/g,'').trim();
     let items=[]; try{ items=JSON.parse(out); }catch(e){ const m=out.match(/\d+/g); if(m)items=[...new Set(m.map(Number))].slice(0,5).map(p=>({page:p,reason:''})); }
-    if(!items.length){ box.innerHTML='<div class="empty-hint">'+t('findNone')+'</div>'; return; }
-    box.innerHTML='';
-    items.forEach(it=>{ const p=Math.max(1,Math.min(pdfDoc.numPages,it.page));
-      const d=document.createElement('div'); d.className='bm';
-      d.innerHTML=t('findPage')(p)+(it.reason?'<div class="n" style="font-style:italic;color:var(--muted);font-size:12px;margin-top:4px">'+escapeHtml(it.reason)+'</div>':'');
-      d.onclick=()=>jumpToPage(p); box.appendChild(d); });
+    items=items.filter(it=>!findShown.has(Math.max(1,Math.min(pdfDoc.numPages,it.page))));
+    if(!more) box.innerHTML=''; else { const old=box.querySelector('button'); if(old)old.remove(); }
+    if(!items.length){ const d=document.createElement('div'); d.className='empty-hint'; d.textContent=more?t('findNoMore'):t('findNone'); box.appendChild(d); return; }
+    items.forEach(it=>{ findShown.add(Math.max(1,Math.min(pdfDoc.numPages,it.page))); addFindResult(box,it); });
+    addMoreBtn(box);
   }catch(err){ box.innerHTML='<div class="empty-hint">'+t('netErr')+escapeHtml(err.message)+'</div>'; }
 }
 
