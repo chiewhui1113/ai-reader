@@ -5,6 +5,8 @@
 **看 PDF 卡在某段看不懂，选中它，AI 当场就给你讲明白。**
 不用复制到别的标签页，不用离开你的书。
 
+### 👉 [打开应用](https://chiewhui1113.github.io/ai-reader/)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![单文件](https://img.shields.io/badge/单文件-HTML-orange)
 ![纯前端](https://img.shields.io/badge/100%25-纯前端-success)
