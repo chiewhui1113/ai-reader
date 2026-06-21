@@ -117,6 +117,7 @@
   .refItem img{width:100%;height:170px;object-fit:contain;object-position:top;background:var(--bg);display:block;cursor:zoom-in}
   .refItem img.full{height:auto;cursor:zoom-out}
   #rdResize{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:ew-resize;z-index:5}
+  #sheetBackdrop{display:none}
   #snipBox{position:fixed;border:2px solid var(--accent);background:rgba(79,70,229,.16);z-index:80;pointer-events:none;border-radius:2px}
   body.snip #viewer{cursor:crosshair}
   body.snip{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
@@ -125,8 +126,9 @@
   body.snip #snipHint{display:block}
   #banner{display:none;background:#fde68a;color:#7c5700;padding:7px 12px;font-size:12.5px;text-align:center}
   @media(max-width:760px){
-    #panel{position:absolute;inset:0;width:100%;z-index:60;transform:translateX(100%);transition:.25s}
+    #panel{position:fixed;left:0;right:0;bottom:0;top:auto;width:100%;height:80vh;z-index:64;transform:translateY(100%);transition:transform .25s;border-left:none;border-top:1px solid var(--line);border-radius:14px 14px 0 0;box-shadow:0 -4px 16px rgba(0,0,0,.2)}
     #panel.open{transform:none}
+    #sheetBackdrop{position:fixed;inset:0;background:rgba(0,0,0,.28);z-index:62}
     .desk-only{display:none}
     .main{order:1}
     header{order:2;padding:8px 10px;padding-bottom:calc(8px + env(safe-area-inset-bottom));gap:8px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;justify-content:space-between;border-top:1px solid var(--line);border-bottom:none;z-index:55}
@@ -139,7 +141,7 @@
     .bmtxt{display:none}
     #pageInput{width:44px}
     #pageTotal{font-size:12px}
-    #viewer{padding:10px 8px}
+    #viewer{padding:calc(12px + env(safe-area-inset-top)) 8px 12px}
     .tabs button{font-size:14px;padding:12px 4px}
     /* 16px 防止 iOS 聚焦输入框时自动放大 */
     .ask input,#findInput,#pageInput,.card2 input,.card2 select,.scope select{font-size:16px}
@@ -147,6 +149,7 @@
     #refDock{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto!important;min-width:0;height:58vh;border:none;border-top:1px solid var(--line);border-radius:14px 14px 0 0;z-index:66;display:flex!important;flex-direction:column;transform:translateY(100%);transition:transform .25s;box-shadow:0 -4px 16px rgba(0,0,0,.2)}
     body.refon #refDock{transform:none}
     #refDock.collapsed .rdbody{display:flex}
+    .rdhead{touch-action:none;cursor:row-resize}
     #rdResize{display:none}
   }
   .mobile-only{display:none}
@@ -156,6 +159,7 @@
 <body data-theme="light">
 <div id="banner"></div>
 <div id="snipHint"></div>
+<div id="sheetBackdrop"></div>
 <header>
   <h1 data-i18n="appName">📖 问读</h1>
   <button class="btn" id="shelfBtn" data-i18n="shelf">书架</button>
@@ -477,10 +481,13 @@ async function renderPage(num,scale){
   const wrap=placeholders[num]; if(!wrap||wrap.dataset.rendered)return; wrap.dataset.rendered='1';
   wrap.classList.remove('placeholder'); wrap.textContent='';
   const pg=await pdfDoc.getPage(num); const vp=pg.getViewport({scale});
-  const canvas=document.createElement('canvas'); canvas.width=vp.width; canvas.height=vp.height; wrap.appendChild(canvas);
+  const dpr=Math.min(window.devicePixelRatio||1,3);
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.floor(vp.width*dpr); canvas.height=Math.floor(vp.height*dpr);
+  canvas.style.width=vp.width+'px'; canvas.style.height=vp.height+'px'; wrap.appendChild(canvas);
   const tl=document.createElement('div'); tl.className='textLayer'; wrap.appendChild(tl);
   const hl=document.createElement('div'); hl.className='hlLayer'; wrap.appendChild(hl);
-  await pg.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
+  await pg.render({canvasContext:canvas.getContext('2d'),viewport:vp,transform:dpr!==1?[dpr,0,0,dpr,0,0]:null}).promise;
   const tc=await pg.getTextContent();
   pdfjsLib.renderTextLayer({textContent:tc,container:tl,viewport:vp,textDivs:[]});
   drawHighlights(num);
@@ -507,7 +514,7 @@ $('#zoomOut').onclick=()=>{cfg.zoom=Math.max(0.6,cfg.zoom-0.15);localStorage.set
 
 $('#shelfBtn').onclick=()=>{ $('#reader').style.display='none'; $('#library').style.display='block'; document.body.classList.remove('reading');
   $('#readerTools').style.display='none'; $('#togglePanel').style.display='none'; $('#refMobileBtn').style.display='none'; $('#pageNav').style.display='none'; $('#titleEl').textContent=''; document.body.classList.remove('refon');
-  clearRefDock(); pdfDoc=null; curBook=null; renderShelf(); };
+  clearRefDock(); $('#panel').classList.remove('open'); syncBackdrop(); pdfDoc=null; curBook=null; renderShelf(); };
 
 /* ---------- theme + language ---------- */
 $('#themeBtn').onclick=()=>{ const o=['light','sepia','dark']; const i=o.indexOf(document.body.dataset.theme); const tm=o[(i+1)%3]; document.body.dataset.theme=tm; cfg.theme=tm; localStorage.setItem('air_theme',tm); };
@@ -543,6 +550,7 @@ function rectsForSelection(){
     (groups[num]=groups[num]||[]).push({x:(r.left-pr.left)/pr.width,y:(r.top-pr.top)/pr.height,w:r.width/pr.width,h:r.height/pr.height}); }
   return Object.keys(groups).length?groups:null;
 }
+document.addEventListener('pointerdown',e=>{ if(pendingImage && !bar.contains(e.target)){ pendingImage=null; bar.style.display='none'; } },true);
 bar.querySelectorAll('button').forEach(b=>b.onclick=()=>{
   bar.style.display='none'; const act=b.dataset.act;
   const map={explain:'pExplain',translate:'pTranslate',summary:'pSummary'};
@@ -621,8 +629,16 @@ function cropRegion(r){
 /* ---------- reference dock (pinned snippets) ---------- */
 function syncRefToggle(){ const tg=$('#refToggle'); const on=document.body.classList.contains('refon'); tg.textContent=on?'‹':'›'; tg.style.left=on?($('#refDock').offsetWidth+'px'):'0'; }
 $('#refToggle').onclick=()=>{ document.body.classList.toggle('refon'); syncRefToggle(); };
-$('#refMobileBtn').onclick=()=>{ document.body.classList.toggle('refon'); };
-$('#rdClose').onclick=()=>document.body.classList.remove('refon');
+$('#refMobileBtn').onclick=()=>{ document.body.classList.toggle('refon'); syncBackdrop(); };
+$('#rdClose').onclick=()=>{ document.body.classList.remove('refon'); syncBackdrop(); };
+// 手机：拖参考栏标题可调整高度
+document.querySelector('.rdhead').addEventListener('pointerdown',e=>{
+  if(window.innerWidth>760||e.target.tagName==='BUTTON')return; e.preventDefault();
+  const sy=e.clientY, sh=$('#refDock').offsetHeight;
+  const mv=ev=>{ const h=Math.max(window.innerHeight*0.25,Math.min(window.innerHeight*0.9,sh+(sy-ev.clientY))); $('#refDock').style.height=h+'px'; };
+  const up=()=>{ document.removeEventListener('pointermove',mv); document.removeEventListener('pointerup',up); };
+  document.addEventListener('pointermove',mv); document.addEventListener('pointerup',up);
+});
 function clearRefDock(){ document.body.classList.remove('refon'); $('#rdBody').innerHTML=''; syncRefToggle(); }
 function renderPins(){
   const body=$('#rdBody'); body.innerHTML='';
@@ -699,9 +715,12 @@ function openPanel(tab){
   if(window.innerWidth<=760)$('#panel').classList.add('open');
   document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
   document.querySelectorAll('.tabpane').forEach(x=>x.classList.toggle('active',x.id==='tab-'+tab));
+  syncBackdrop();
 }
-$('#togglePanel').onclick=()=>$('#panel').classList.toggle('open');
-$('#closePanel').onclick=()=>$('#panel').classList.remove('open');
+function syncBackdrop(){ const on=window.innerWidth<=760 && ($('#panel').classList.contains('open')||document.body.classList.contains('refon')); $('#sheetBackdrop').style.display=on?'block':'none'; }
+$('#sheetBackdrop').onclick=()=>{ $('#panel').classList.remove('open'); document.body.classList.remove('refon'); syncBackdrop(); };
+$('#togglePanel').onclick=()=>{ $('#panel').classList.toggle('open'); syncBackdrop(); };
+$('#closePanel').onclick=()=>{ $('#panel').classList.remove('open'); syncBackdrop(); };
 $('#panelToggle').onclick=()=>{ const col=$('#panel').classList.toggle('collapsed'); const b=$('#panelToggle'); b.textContent=col?'‹':'›'; b.style.right=col?'0':'380px'; };
 
 /* ---------- chat ---------- */
