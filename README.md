@@ -1,62 +1,31 @@
-<div align="center">
+# AI Reader
 
-# 📖 AI Reader · Ask While You Read
-
-**A free, single-file PDF reader with a built-in AI tutor. Select any text and get an explanation right where you are — no copy-paste, no switching apps.**
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![No build](https://img.shields.io/badge/build-none-brightgreen)
-![Single file](https://img.shields.io/badge/single--file-HTML-orange)
-![100% client-side](https://img.shields.io/badge/100%25-client--side-success)
-![PRs welcome](https://img.shields.io/badge/PRs-welcome-ff69b4)
+A free PDF reader with a built-in AI helper. When you hit something you don't understand, select the text and ask — the answer shows up in a side panel, so you don't have to copy it into a separate chat app.
 
 English · [中文](README.zh.md)
 
-</div>
+## What it does
 
----
+- Select any text to explain, translate, summarize, or highlight it
+- A bookshelf for multiple PDFs, with covers and reading progress
+- Remembers where you left off; bookmarks and highlights with notes
+- Ask the AI to find the page that covers a topic
+- Ask about the selected text, the current page, or the whole book
+- Separate chat history per book
+- Light / sepia / dark themes
+- English and 中文 interface
+- Works on phone and computer
 
-> Reading a dense book or paper and hit a paragraph you don't get? Instead of breaking your flow to open ChatGPT and paste it, just **highlight it** — the AI explains, translates, or summarizes it in a side panel, in plain language with examples.
+## How to use
 
-## ✨ Features
+1. Open the app and click ⚙ to add a key. Get a free one from [Google AI Studio](https://aistudio.google.com/app/apikey) and paste it in (it's stored only in your browser).
+2. Add a PDF and start reading.
+3. Select text and pick Explain / Translate / Summarize, or type your own question.
 
-- **🖱️ Select-to-ask** — highlight any text → **Explain · Translate · Summarize · Highlight · Ask**
-- **📚 Bookshelf** — import multiple PDFs with covers and reading progress
-- **🔖 Resume & bookmarks** — auto-remembers where you left off; one-tap bookmarks
-- **🖍️ Highlights + notes** — mark passages, attach notes, manage them in one place
-- **🔎 AI page finder** — describe what you're looking for in plain words; AI points you to the right page
-- **🎯 Three ask scopes** — selected text / current page / **the whole book**
-- **💬 Per-book chat history** — conversations are saved separately for each book
-- **🌗 Light / Sepia / Dark** reading themes
-- **🌐 Bilingual UI** — switch between English and 中文 in one click
-- **📱 Works everywhere** — phone and desktop, just a URL
+## Notes
 
-## 🔒 Private & free by design
+Everything — your books, notes, and progress — stays in your own browser. Nothing is uploaded to a server. The AI runs on your own Google Gemini key, which has a free tier that's plenty for everyday reading. `gemini-2.5-flash-lite` is a good default.
 
-There is **no server**. Your books, progress, highlights and chats live in **your own browser** (IndexedDB) and never leave your device. AI runs on **your own free [Google Gemini](https://aistudio.google.com/app/apikey) key** and quota. That means: deploy once, and any number of people can use it — each with their own storage and quota, at **zero cost to the host**.
-
-## 🚀 Deploy in 3 steps (GitHub Pages)
-
-1. Create a repo (e.g. `ai-reader`) and upload `index.html`, `LICENSE`, `.nojekyll`.
-2. **Settings → Pages → Source** → `Deploy from a branch` → `main` + `/ (root)`, save.
-3. Wait a minute, get `https://<username>.github.io/ai-reader/`, share the link.
-
-Your friends don't touch GitHub at all — they just open the link. The only one-time step for each person: paste their own free Gemini key in **⚙ Settings**.
-
-## 🔑 First run
-
-Open **⚙ Settings** → grab a free key at [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) → paste it. The key is stored only in your browser. Recommended model: `gemini-2.5-flash-lite` (highest free quota).
-
-> Prefer not to deploy? You can also just open `index.html` locally — but Chrome blocks storage for `file://` pages, so use Firefox or run `python -m http.server` for full memory.
-
-## 🛠️ Tech
-
-One static HTML file: vanilla JS + [PDF.js](https://mozilla.github.io/pdf.js/) (CDN) + IndexedDB + Google Gemini API. No build, no dependencies, no tracking.
-
-## 🤝 Contributing
-
-Issues and PRs are welcome. If this saved you a few hundred copy-pastes, a ⭐ helps others find it!
-
-## 📄 License
+## License
 
 [MIT](LICENSE)

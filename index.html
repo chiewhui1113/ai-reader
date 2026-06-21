@@ -101,8 +101,20 @@
   @media(max-width:760px){
     #panel{position:absolute;inset:0;width:100%;z-index:60;transform:translateX(100%);transition:.25s}
     #panel.open{transform:none}
-    .title{max-width:22vw}
     .desk-only{display:none}
+    header{padding:7px 8px;gap:5px}
+    header h1{font-size:0;flex:0 0 auto}
+    header h1::before{content:"📖";font-size:19px}
+    #titleEl{display:none}
+    #langBtn{display:none}
+    .btn{padding:7px 9px;font-size:13px}
+    .bmtxt{display:none}
+    #pageInput{width:44px}
+    #pageTotal{font-size:12px}
+    #viewer{padding:10px 8px}
+    .tabs button{font-size:14px;padding:12px 4px}
+    /* 16px 防止 iOS 聚焦输入框时自动放大 */
+    .ask input,#findInput,#pageInput,.card2 input,.card2 select,.scope select{font-size:16px}
   }
   .mobile-only{display:none}
   @media(max-width:760px){ .mobile-only{display:inline-block} }
@@ -121,10 +133,10 @@
     <button class="btn" id="nextPg" data-i18n-title="next">›</button>
   </span>
   <div class="spacer"></div>
-  <span class="desk-only" id="readerTools" style="display:none">
-    <button class="btn" id="zoomOut">A−</button>
-    <button class="btn" id="zoomIn">A+</button>
-    <button class="btn" id="bmBtn" data-i18n="bookmarkBtn">🔖 书签</button>
+  <span id="readerTools" style="display:none">
+    <button class="btn desk-only" id="zoomOut">A−</button>
+    <button class="btn desk-only" id="zoomIn">A+</button>
+    <button class="btn" id="bmBtn" title="书签 / Bookmark">🔖<span class="bmtxt" data-i18n="bmWord"> 书签</span></button>
   </span>
   <button class="btn" id="langBtn">EN</button>
   <button class="btn" id="themeBtn">🌗</button>
@@ -224,7 +236,7 @@ const $ = s => document.querySelector(s);
 
 /* ---------- i18n ---------- */
 const I18N={
-  zh:{ appName:"📖 AI 看书", shelf:"书架", bookmarkBtn:"🔖 书签", addPdf:"添加 PDF",
+  zh:{ appName:"📖 AI 看书", shelf:"书架", bookmarkBtn:"🔖 书签", bmWord:" 书签", addPdf:"添加 PDF",
     tabAI:"💬 AI", tabFind:"🔎 找页", tabNotes:"✏️ 笔记", tabMarks:"🔖 书签",
     findPh:"描述要找的内容，如：讲注意力机制的部分", findBtn:"找",
     scopeLabel:"范围：", scopeSel:"选中文字", scopePage:"当前页", scopeBook:"整本书",
@@ -250,7 +262,7 @@ const I18N={
     pExplain:"请用通俗易懂的方式解释下面这段文字，并多举具体例子帮助理解：",
     pTranslate:"请把下面这段文字翻译成中文：", pSummary:"请用一两句话总结下面这段文字的核心意思："
   },
-  en:{ appName:"📖 AI Reader", shelf:"Library", bookmarkBtn:"🔖 Bookmark", addPdf:"Add PDF",
+  en:{ appName:"📖 AI Reader", shelf:"Library", bookmarkBtn:"🔖 Bookmark", bmWord:" Bookmark", addPdf:"Add PDF",
     tabAI:"💬 AI", tabFind:"🔎 Find", tabNotes:"✏️ Notes", tabMarks:"🔖 Marks",
     findPh:"Describe what you want, e.g. the part on attention", findBtn:"Find",
     scopeLabel:"Scope:", scopeSel:"Selection", scopePage:"This page", scopeBook:"Whole book",
