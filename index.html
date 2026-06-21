@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>AI 看书 · AI Reader</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{ --bg:#f6f7f9; --panel:#fff; --ink:#1c1f23; --muted:#6b7280; --line:#e5e7eb; --accent:#4f46e5; --accent2:#eef2ff; --pageFilter:none; --card:#fff; }
+  [data-theme="sepia"]{ --bg:#f4ecd8; --panel:#fbf4e3; --ink:#43381f; --muted:#8a7a55; --line:#e3d6b5; --accent:#9a6b2f; --accent2:#efe2c4; --pageFilter:sepia(.35) brightness(.97); --card:#fbf4e3; }
+  [data-theme="dark"]{ --bg:#16181d; --panel:#1e2127; --ink:#e6e8ec; --muted:#9aa0aa; --line:#2c303a; --accent:#8b87ff; --accent2:#262a36; --pageFilter:invert(.9) hue-rotate(180deg); --card:#1e2127; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",Segoe UI,sans-serif;background:var(--bg);color:var(--ink);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+  header{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+  header h1{font-size:15px;margin:0;font-weight:600;white-space:nowrap}
+  .title{font-size:13px;color:var(--muted);max-width:30vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #pageNav{display:flex;align-items:center;gap:5px}
+  #pageInput{width:52px;text-align:center;border:1px solid var(--line);border-radius:7px;padding:5px 4px;font-size:13px;background:var(--panel);color:var(--ink)}
+  #pageInput::-webkit-inner-spin-button{opacity:.4}
+  .btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer;color:var(--ink)}
+  .btn:hover{filter:brightness(.96)}
+  .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .spacer{flex:1}
+  .main{flex:1;display:flex;overflow:hidden;position:relative}
+
+  #library{flex:1;overflow:auto;padding:22px}
+  .shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:18px;max-width:1100px;margin:0 auto}
+  .book{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;transition:.15s;position:relative}
+  .book:hover{transform:translateY(-3px);box-shadow:0 6px 18px rgba(0,0,0,.12)}
+  .book .cover{aspect-ratio:3/4;background:#d9dbe0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .book .cover img{width:100%;height:100%;object-fit:cover}
+  .book .meta{padding:9px 10px}
+  .book .bt{font-size:13px;font-weight:600;line-height:1.35;max-height:3.6em;overflow:hidden}
+  .book .prog{font-size:11px;color:var(--muted);margin-top:5px}
+  .book .del{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:14px;line-height:1;display:none}
+  .book:hover .del{display:block}
+  .addbook{border:2px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--muted);cursor:pointer;aspect-ratio:3/4;font-size:14px;gap:6px}
+  .addbook:hover{border-color:var(--accent);color:var(--accent)}
+  .addbook .plus{font-size:34px}
+
+  #reader{flex:1;display:flex;overflow:hidden}
+  #viewer{flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;align-items:center;gap:14px}
+  .pageWrap{position:relative;box-shadow:0 1px 6px rgba(0,0,0,.18);background:#fff;flex:0 0 auto}
+  .pageWrap canvas{display:block;filter:var(--pageFilter)}
+  .textLayer{position:absolute;inset:0;overflow:hidden;opacity:.2;line-height:1}
+  .textLayer span{color:transparent;position:absolute;white-space:pre;cursor:text;transform-origin:0 0}
+  .textLayer ::selection{background:rgba(79,70,229,.4)}
+  .hlLayer{position:absolute;inset:0;pointer-events:none}
+  .hl{position:absolute;background:rgba(255,214,0,.45);border-radius:2px;mix-blend-mode:multiply}
+  [data-theme="dark"] .hl{mix-blend-mode:screen;background:rgba(255,214,0,.3)}
+  .placeholder{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px}
+
+  #panel{width:380px;min-width:300px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column}
+  .tabs{display:flex;border-bottom:1px solid var(--line)}
+  .tabs button{flex:1;border:none;background:none;padding:10px 4px;font-size:13px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent}
+  .tabs button.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+  .tabpane{flex:1;overflow:auto;padding:12px;display:none;flex-direction:column;gap:10px}
+  .tabpane.active{display:flex}
+  .msg{padding:9px 11px;border-radius:10px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+  .msg.me{background:var(--accent2);align-self:flex-end;max-width:92%}
+  .msg.ai{background:rgba(125,125,125,.12);align-self:flex-start;max-width:100%;white-space:normal}
+  .msg .q{font-size:11px;color:var(--muted);margin-bottom:4px}
+  .msg.ai .mdh{font-weight:600;margin:8px 0 3px}
+  .msg.ai .mdli{margin:3px 0;line-height:1.6}
+  .msg.ai p{margin:6px 0}
+  .msg.ai code{background:rgba(125,125,125,.18);padding:1px 5px;border-radius:4px;font-size:13px}
+  .msg.ai strong{font-weight:700}
+  .ask{border-top:1px solid var(--line);padding:9px;display:flex;flex-direction:column;gap:7px}
+  .ask .scope{display:flex;gap:6px;font-size:12px;align-items:center;color:var(--muted)}
+  .ask .scope select{border:1px solid var(--line);border-radius:6px;padding:3px 6px;background:var(--panel);color:var(--ink);font-size:12px}
+  .ask .inrow{display:flex;gap:7px}
+  .ask input{flex:1;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--panel);color:var(--ink)}
+  #tab-find .inrow{display:flex;gap:7px}
+  #tab-find input{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--panel);color:var(--ink)}
+  #tab-find #findBtn{white-space:nowrap;flex:0 0 auto}
+  .note,.bm{border:1px solid var(--line);border-radius:8px;padding:9px;font-size:13px;cursor:pointer;background:var(--card)}
+  .note:hover,.bm:hover{border-color:var(--accent)}
+  .note .t{color:var(--ink);line-height:1.5}
+  .note .n{color:var(--muted);font-size:12px;margin-top:4px;font-style:italic}
+  .note .x,.bm .x{float:right;color:var(--muted);border:none;background:none;cursor:pointer;font-size:13px}
+  .empty-hint{color:var(--muted);font-size:13px;text-align:center;margin-top:30px;line-height:1.7}
+
+  #floatBar{position:fixed;z-index:50;display:none;gap:4px;background:#23262d;padding:5px;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.3)}
+  #floatBar button{background:transparent;color:#fff;border:none;font-size:13px;cursor:pointer;padding:5px 8px;border-radius:6px;white-space:nowrap}
+  #floatBar button:hover{background:rgba(255,255,255,.16)}
+
+  #modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:100}
+  .card2{background:var(--panel);border-radius:14px;padding:22px;width:min(520px,92vw);max-height:90vh;overflow:auto;color:var(--ink)}
+  .card2 h3{margin:0 0 6px}
+  .card2 label{display:block;font-size:13px;margin:14px 0 4px;font-weight:600}
+  .card2 input,.card2 select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--panel);color:var(--ink)}
+  .card2 p{font-size:12.5px;color:var(--muted);line-height:1.6}
+  .card2 a{color:var(--accent)}
+  .rowend{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+
+  #panelToggle{display:none;position:absolute;top:50%;transform:translateY(-50%);right:380px;z-index:70;background:var(--panel);border:1px solid var(--line);border-right:none;border-radius:9px 0 0 9px;width:22px;height:52px;cursor:pointer;color:var(--muted);font-size:15px;box-shadow:-2px 0 6px rgba(0,0,0,.07)}
+  body.reading #panelToggle{display:block}
+  #panel.collapsed{display:none}
+  @media(max-width:760px){ #panelToggle{display:none!important} }
+  #banner{display:none;background:#fde68a;color:#7c5700;padding:7px 12px;font-size:12.5px;text-align:center}
+  @media(max-width:760px){
+    #panel{position:absolute;inset:0;width:100%;z-index:60;transform:translateX(100%);transition:.25s}
+    #panel.open{transform:none}
+    .title{max-width:22vw}
+    .desk-only{display:none}
+  }
+  .mobile-only{display:none}
+  @media(max-width:760px){ .mobile-only{display:inline-block} }
+</style>
+</head>
+<body data-theme="light">
+<div id="banner"></div>
+<header>
+  <h1 data-i18n="appName">📖 AI 看书</h1>
+  <button class="btn" id="shelfBtn" data-i18n="shelf">书架</button>
+  <span class="title" id="titleEl"></span>
+  <span id="pageNav" style="display:none">
+    <button class="btn" id="prevPg" data-i18n-title="prev">‹</button>
+    <input id="pageInput" type="number" min="1" data-i18n-title="pageInput">
+    <span class="title" id="pageTotal" style="max-width:none"></span>
+    <button class="btn" id="nextPg" data-i18n-title="next">›</button>
+  </span>
+  <div class="spacer"></div>
+  <span class="desk-only" id="readerTools" style="display:none">
+    <button class="btn" id="zoomOut">A−</button>
+    <button class="btn" id="zoomIn">A+</button>
+    <button class="btn" id="bmBtn" data-i18n="bookmarkBtn">🔖 书签</button>
+  </span>
+  <button class="btn" id="langBtn">EN</button>
+  <button class="btn" id="themeBtn">🌗</button>
+  <button class="btn mobile-only" id="togglePanel" style="display:none">AI</button>
+  <button class="btn" id="settingsBtn">⚙</button>
+</header>
+
+<div class="main">
+  <div id="library">
+    <div class="shelf" id="shelf">
+      <div class="addbook" id="addCard"><div class="plus">＋</div><div data-i18n="addPdf">添加 PDF</div></div>
+    </div>
+  </div>
+  <input type="file" id="file" accept="application/pdf" style="display:none">
+
+  <div id="reader" style="display:none">
+    <div id="viewer"></div>
+    <button id="panelToggle" title="展开/收起 · Toggle panel">›</button>
+    <div id="panel">
+      <div class="tabs">
+        <button data-tab="chat" class="active" data-i18n="tabAI">💬 AI</button>
+        <button data-tab="find" data-i18n="tabFind">🔎 找页</button>
+        <button data-tab="notes" data-i18n="tabNotes">✏️ 笔记</button>
+        <button data-tab="marks" data-i18n="tabMarks">🔖 书签</button>
+      </div>
+      <div class="tabpane active" id="tab-chat"></div>
+      <div class="tabpane" id="tab-find">
+        <div class="inrow">
+          <input id="findInput" data-i18n-ph="findPh">
+          <button class="btn primary" id="findBtn" data-i18n="findBtn">找</button>
+        </div>
+        <div id="findResults" style="display:flex;flex-direction:column;gap:8px;margin-top:4px"></div>
+      </div>
+      <div class="tabpane" id="tab-notes"></div>
+      <div class="tabpane" id="tab-marks"></div>
+      <div class="ask">
+        <div class="scope">
+          <span data-i18n="scopeLabel">范围：</span>
+          <select id="scope">
+            <option value="sel" data-i18n="scopeSel">选中文字</option>
+            <option value="page" data-i18n="scopePage">当前页</option>
+            <option value="book" data-i18n="scopeBook">整本书</option>
+          </select>
+          <div class="spacer"></div>
+          <button class="btn mobile-only" id="closePanel" style="padding:3px 8px" data-i18n="close">关闭</button>
+        </div>
+        <div class="inrow">
+          <input id="askInput" data-i18n-ph="askPh">
+          <button class="btn primary" id="sendBtn" data-i18n="send">发送</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="floatBar">
+  <button data-act="explain" data-i18n="fExplain">💡 解释</button>
+  <button data-act="translate" data-i18n="fTranslate">🌐 翻译</button>
+  <button data-act="summary" data-i18n="fSummary">📝 总结</button>
+  <button data-act="highlight" data-i18n="fHighlight">🖍 高亮</button>
+  <button data-act="ask" data-i18n="fAsk">❓ 提问</button>
+</div>
+
+<div id="modal">
+  <div class="card2">
+    <h3 data-i18n="setTitle">设置</h3>
+    <p data-i18n="setIntro">本阅读器调用 Google Gemini 的免费额度。Key 只存在你本机浏览器，不上传任何服务器。</p>
+    <label data-i18n="setKeyHow">免费拿 Key（30 秒）</label>
+    <p data-i18n="setKeySteps">1. 打开 <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a> 用谷歌账号登录；2. 点 “Create API key”，复制 Key；3. 粘贴到下面保存。</p>
+    <label data-i18n="setKey">API Key</label>
+    <input id="apiKey" type="password" data-i18n-ph="setKeyPh">
+    <label data-i18n="setModel">模型（免费层，额度从高到低）</label>
+    <select id="model">
+      <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
+      <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+      <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+      <option value="gemini-flash-latest">gemini-flash-latest</option>
+      <option value="gemini-flash-lite-latest">gemini-flash-lite-latest</option>
+      <option value="gemini-3-flash-preview">gemini-3-flash-preview</option>
+      <option value="gemini-3.1-flash-lite-preview">gemini-3.1-flash-lite-preview</option>
+      <option value="__custom">⌨ 自定义 / Custom…</option>
+    </select>
+    <input id="modelCustom" style="margin-top:8px;display:none" data-i18n-ph="setModelCustom" placeholder="自定义模型名，如 gemini-3-pro-preview">
+    <p data-i18n="setModelTip" style="margin-top:6px">提示：若提示「quota exceeded / limit: 0」，多半是该模型免费层无额度或当天用超，换额度更高的模型或隔一会再试。</p>
+    <label data-i18n="setLang">语言 / Language</label>
+    <select id="lang"><option value="中文">中文</option><option value="English">English</option></select>
+    <div class="rowend">
+      <button class="btn" id="closeModal" data-i18n="cancel">取消</button>
+      <button class="btn primary" id="saveSettings" data-i18n="save">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+const $ = s => document.querySelector(s);
+
+/* ---------- i18n ---------- */
+const I18N={
+  zh:{ appName:"📖 AI 看书", shelf:"书架", bookmarkBtn:"🔖 书签", addPdf:"添加 PDF",
+    tabAI:"💬 AI", tabFind:"🔎 找页", tabNotes:"✏️ 笔记", tabMarks:"🔖 书签",
+    findPh:"描述要找的内容，如：讲注意力机制的部分", findBtn:"找",
+    scopeLabel:"范围：", scopeSel:"选中文字", scopePage:"当前页", scopeBook:"整本书",
+    close:"关闭", askPh:"问我任何问题…", send:"发送",
+    fExplain:"💡 解释", fTranslate:"🌐 翻译", fSummary:"📝 总结", fHighlight:"🖍 高亮", fAsk:"❓ 提问",
+    prev:"上一页", next:"下一页", pageInput:"输入页码后回车跳转",
+    setTitle:"设置", setIntro:"本阅读器调用 Google Gemini 的免费额度。Key 只存在你本机浏览器，不上传任何服务器。",
+    setKeyHow:"免费拿 Key（30 秒）", setKeySteps:'1. 打开 <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a> 用谷歌账号登录；2. 点 “Create API key”，复制 Key；3. 粘贴到下面保存。',
+    setKey:"API Key", setKeyPh:"粘贴 AIza... 开头的 Key", setModel:"模型（免费层，额度从高到低）", setModelCustom:"自定义模型名，如 gemini-3-pro-preview",
+    setModelTip:"提示：若提示「quota exceeded / limit: 0」，多半是该模型免费层无额度或当天用超，换额度更高的模型或隔一会再试。",
+    setLang:"语言 / Language", cancel:"取消", save:"保存",
+    chatGreet:"你好！选中书里的文字可以解释/翻译/总结/高亮；也能在下面切换范围问「当前页」或「整本书」。",
+    thinking:"思考中…", errPrefix:"出错：", netErr:"网络错误：", noReturn:"(无返回)",
+    needKey:"请先在设置里填入免费 API Key。", findThinking:"AI 正在通读全书定位…",
+    findNone:"没找到明显相关的页，换个说法再试试。",
+    notesEmpty:"选中文字后点 🖍 高亮，可加笔记。这里会列出本书所有高亮和笔记。",
+    marksEmpty:"点工具栏 🔖 把当前页加入书签。",
+    notePrompt:"给这段高亮加条笔记（可留空）：", delConfirm:"删除这本书及其笔记？",
+    banner:"⚠️ 当前打开方式无法保存书籍/进度（Chrome 双击本地文件的限制）。建议部署到 GitHub Pages 后用网址打开，记忆功能即正常。",
+    basis:"依据：", langBtn:"EN",
+    page:n=>"第 "+n+" 页", bmPage:n=>"🔖 第 "+n+" 页", findPage:n=>"📄 第 "+n+" 页",
+    prog:(p,pct)=>p+"页 · 读到"+pct+"%",
+    pExplain:"请用通俗易懂的方式解释下面这段文字，并多举具体例子帮助理解：",
+    pTranslate:"请把下面这段文字翻译成中文：", pSummary:"请用一两句话总结下面这段文字的核心意思："
+  },
+  en:{ appName:"📖 AI Reader", shelf:"Library", bookmarkBtn:"🔖 Bookmark", addPdf:"Add PDF",
+    tabAI:"💬 AI", tabFind:"🔎 Find", tabNotes:"✏️ Notes", tabMarks:"🔖 Marks",
+    findPh:"Describe what you want, e.g. the part on attention", findBtn:"Find",
+    scopeLabel:"Scope:", scopeSel:"Selection", scopePage:"This page", scopeBook:"Whole book",
+    close:"Close", askPh:"Ask me anything…", send:"Send",
+    fExplain:"💡 Explain", fTranslate:"🌐 Translate", fSummary:"📝 Summary", fHighlight:"🖍 Highlight", fAsk:"❓ Ask",
+    prev:"Previous page", next:"Next page", pageInput:"Type a page number and press Enter",
+    setTitle:"Settings", setIntro:"This reader uses Google Gemini's free tier. Your key is stored only in your browser and never uploaded.",
+    setKeyHow:"Get a free key (30s)", setKeySteps:'1. Open <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a> and sign in; 2. Click “Create API key” and copy it; 3. Paste below and save.',
+    setKey:"API Key", setKeyPh:"Paste your key (starts with AIza...)", setModel:"Model (free tier, highest quota first)", setModelCustom:"Custom model name, e.g. gemini-3-pro-preview",
+    setModelTip:"Tip: a “quota exceeded / limit: 0” error usually means that model has no free quota or you hit the daily cap — switch to a higher-quota model or try again later.",
+    setLang:"语言 / Language", cancel:"Cancel", save:"Save",
+    chatGreet:"Hi! Select any text to explain / translate / summarize / highlight it, or switch scope below to ask about this page or the whole book.",
+    thinking:"Thinking…", errPrefix:"Error: ", netErr:"Network error: ", noReturn:"(no response)",
+    needKey:"Please add a free API key in Settings first.", findThinking:"AI is scanning the book…",
+    findNone:"No clearly relevant page found. Try rephrasing.",
+    notesEmpty:"Select text and tap 🖍 Highlight to add a note. All highlights and notes for this book show up here.",
+    marksEmpty:"Tap 🔖 in the toolbar to bookmark the current page.",
+    notePrompt:"Add a note for this highlight (optional):", delConfirm:"Delete this book and its notes?",
+    banner:"⚠️ This open mode can't save books/progress (Chrome blocks storage for local files). Deploy to GitHub Pages and open via URL for full memory.",
+    basis:"Context: ", langBtn:"中",
+    page:n=>"Page "+n, bmPage:n=>"🔖 Page "+n, findPage:n=>"📄 Page "+n,
+    prog:(p,pct)=>p+"p · "+pct+"% read",
+    pExplain:"Explain the following text in plain language, with concrete examples to aid understanding:",
+    pTranslate:"Translate the following text into English:", pSummary:"Summarize the core idea of the following text in one or two sentences:"
+  }
+};
+const cfg = {
+  key:localStorage.getItem('air_key')||'',
+  model:localStorage.getItem('air_model')||'gemini-2.5-flash-lite',
+  lang:localStorage.getItem('air_lang')||'中文',
+  theme:localStorage.getItem('air_theme')||'light',
+  zoom:parseFloat(localStorage.getItem('air_zoom')||'1')
+};
+document.body.dataset.theme=cfg.theme;
+if(/^gemini-2\.0/.test(cfg.model)){ cfg.model='gemini-2.5-flash-lite'; localStorage.setItem('air_model',cfg.model); }
+function uiLang(){ return cfg.lang==='English'?'en':'zh'; }
+function t(k){ return I18N[uiLang()][k]; }
+function applyI18n(){
+  const L=I18N[uiLang()];
+  document.documentElement.lang=uiLang();
+  document.querySelectorAll('[data-i18n]').forEach(e=>{ const v=L[e.dataset.i18n]; if(v!=null) e.innerHTML=v; });
+  document.querySelectorAll('[data-i18n-ph]').forEach(e=>{ const v=L[e.dataset.i18nPh]; if(v!=null) e.placeholder=v; });
+  document.querySelectorAll('[data-i18n-title]').forEach(e=>{ const v=L[e.dataset.i18nTitle]; if(v!=null) e.title=v; });
+  $('#langBtn').textContent=L.langBtn;
+}
+
+/* ---------- IndexedDB ---------- */
+let DB=null, idbOK=true;
+function openDB(){return new Promise((res,rej)=>{
+  const r=indexedDB.open('aireader',1);
+  r.onupgradeneeded=e=>{const db=e.target.result;
+    if(!db.objectStoreNames.contains('books'))db.createObjectStore('books',{keyPath:'id'});
+    if(!db.objectStoreNames.contains('files'))db.createObjectStore('files',{keyPath:'id'});
+    if(!db.objectStoreNames.contains('state'))db.createObjectStore('state',{keyPath:'id'});};
+  r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);});}
+function tx(store,mode){return DB.transaction(store,mode).objectStore(store);}
+function dbGet(s,k){return new Promise((res,rej)=>{const r=tx(s,'readonly').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+function dbAll(s){return new Promise((res,rej)=>{const r=tx(s,'readonly').getAll();r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+function dbPut(s,v){return new Promise((res,rej)=>{const r=tx(s,'readwrite').put(v);r.onsuccess=()=>res();r.onerror=()=>rej(r.error);});}
+function dbDel(s,k){return new Promise((res,rej)=>{const r=tx(s,'readwrite').delete(k);r.onsuccess=()=>res();r.onerror=()=>rej(r.error);});}
+
+let pdfDoc=null, curBook=null, curState=null, baseScale=1, placeholders=[], allText=null, pageTexts=null, currentPage=1, selText="", selGroups=null, saveTimer=null, io=null;
+
+(async()=>{
+  applyI18n();
+  try{ DB=await openDB(); }
+  catch(e){ idbOK=false; const b=$('#banner'); b.textContent=t('banner'); b.style.display='block'; }
+  await renderShelf();
+  if(!cfg.key) setTimeout(openModal,400);
+})();
+
+/* ---------- library ---------- */
+async function renderShelf(){
+  const shelf=$('#shelf');
+  [...shelf.querySelectorAll('.book')].forEach(n=>n.remove());
+  if(!idbOK) return;
+  const books=(await dbAll('books')).sort((a,b)=>b.opened-a.opened);
+  for(const bk of books){
+    const st=await dbGet('state',bk.id)||{};
+    const pct = st.lastPage&&bk.pages? Math.round(st.lastPage/bk.pages*100):0;
+    const el=document.createElement('div'); el.className='book';
+    el.innerHTML=`<div class="cover">${bk.cover?`<img src="${bk.cover}">`:'📕'}</div>
+      <div class="meta"><div class="bt">${escapeHtml(bk.name)}</div>
+      <div class="prog">${bk.pages?t('prog')(bk.pages,pct):''}</div></div>
+      <button class="del" title="×">×</button>`;
+    el.onclick=e=>{ if(e.target.classList.contains('del')){delBook(bk.id);e.stopPropagation();return;} openBook(bk.id); };
+    shelf.insertBefore(el,$('#addCard'));
+  }
+}
+$('#addCard').onclick=()=>$('#file').click();
+$('#file').onchange=async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f)return;
+  const buf=await f.arrayBuffer();
+  const doc=await pdfjsLib.getDocument({data:buf.slice(0)}).promise;
+  const cover=await makeCover(doc);
+  const id='b'+Date.now();
+  const book={id,name:f.name.replace(/\.pdf$/i,''),pages:doc.numPages,cover,opened:Date.now()};
+  if(idbOK){
+    await dbPut('files',{id,blob:new Blob([buf],{type:'application/pdf'})});
+    await dbPut('books',book);
+    await dbPut('state',{id,lastPage:1,scrollRatio:0,bookmarks:[],highlights:[],chat:[]});
+    await renderShelf();
+  }
+  openBookData(book,buf,{id,lastPage:1,scrollRatio:0,bookmarks:[],highlights:[],chat:[]});
+};
+async function makeCover(doc){
+  const p=await doc.getPage(1); const vp=p.getViewport({scale:1});
+  const s=180/vp.width; const v=p.getViewport({scale:s});
+  const c=document.createElement('canvas'); c.width=v.width;c.height=v.height;
+  await p.render({canvasContext:c.getContext('2d'),viewport:v}).promise;
+  return c.toDataURL('image/jpeg',0.6);
+}
+async function delBook(id){ if(!confirm(t('delConfirm')))return; await dbDel('books',id);await dbDel('files',id);await dbDel('state',id); renderShelf(); }
+function escapeHtml(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function inlineMd(s){ s=escapeHtml(s); s=s.replace(/`([^`]+)`/g,'<code>$1</code>'); s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>'); s=s.replace(/__([^_]+)__/g,'<strong>$1</strong>'); s=s.replace(/(^|[^*])\*([^*\n]+)\*/g,'$1<em>$2</em>'); return s; }
+function mdToHtml(text){
+  const lines=(text||'').replace(/```[a-z]*\n?/gi,'').split('\n'); let html='', para=[];
+  const flush=()=>{ if(para.length){ html+='<p>'+para.join('<br>')+'</p>'; para=[]; } };
+  for(let raw of lines){ let m;
+    if(/^\s*$/.test(raw)){ flush(); continue; }
+    if(m=raw.match(/^\s*(#{1,6})\s+(.*)/)){ flush(); html+='<div class="mdh">'+inlineMd(m[2])+'</div>'; continue; }
+    if(m=raw.match(/^(\s*)[\*\-•]\s+(.*)/)){ flush(); const lv=Math.min(3,Math.floor(m[1].length/2)); html+='<div class="mdli" style="padding-left:'+(10+lv*16)+'px">• '+inlineMd(m[2])+'</div>'; continue; }
+    if(m=raw.match(/^(\s*)(\d+)[\.\)]\s+(.*)/)){ flush(); const lv=Math.min(3,Math.floor(m[1].length/2)); html+='<div class="mdli" style="padding-left:'+(10+lv*16)+'px">'+m[2]+'. '+inlineMd(m[3])+'</div>'; continue; }
+    para.push(inlineMd(raw)); }
+  flush(); return html;
+}
+
+/* ---------- open book ---------- */
+async function openBook(id){
+  const book=await dbGet('books',id); const fileRec=await dbGet('files',id);
+  const buf=await fileRec.blob.arrayBuffer();
+  const st=await dbGet('state',id)||{id,lastPage:1,scrollRatio:0,bookmarks:[],highlights:[],chat:[]};
+  book.opened=Date.now(); if(idbOK)dbPut('books',book);
+  openBookData(book,buf,st);
+}
+async function openBookData(book,buf,st){
+  curBook=book; curState=st; allText=null; pageTexts=null;
+  curState.bookmarks=curState.bookmarks||[]; curState.highlights=curState.highlights||[]; curState.chat=curState.chat||[];
+  pdfDoc=await pdfjsLib.getDocument({data:buf.slice(0)}).promise;
+  $('#library').style.display='none'; $('#reader').style.display='flex'; document.body.classList.add('reading');
+  $('#readerTools').style.display=''; $('#togglePanel').style.display='';
+  $('#pageNav').style.display='flex'; $('#pageTotal').textContent='/ '+pdfDoc.numPages;
+  $('#pageInput').max=pdfDoc.numPages; $('#pageInput').value=st.lastPage||1;
+  $('#titleEl').textContent=book.name;
+  await layoutPages();
+  renderChat(); renderNotes(); renderMarks();
+  requestAnimationFrame(()=>{ $('#viewer').scrollTop=(st.scrollRatio||0)*$('#viewer').scrollHeight; });
+}
+async function layoutPages(){
+  const viewer=$('#viewer'); const ratio=viewer.scrollHeight?viewer.scrollTop/viewer.scrollHeight:0;
+  viewer.innerHTML=''; placeholders=[];
+  const first=await pdfDoc.getPage(1); const w1=first.getViewport({scale:1}).width;
+  baseScale=Math.max(.5,(viewer.clientWidth-32)/w1);
+  const scale=baseScale*cfg.zoom;
+  for(let i=1;i<=pdfDoc.numPages;i++){
+    const pg=await pdfDoc.getPage(i); const vp=pg.getViewport({scale});
+    const wrap=document.createElement('div'); wrap.className='pageWrap placeholder';
+    wrap.style.width=vp.width+'px'; wrap.style.height=vp.height+'px'; wrap.dataset.page=i; wrap.textContent=t('page')(i);
+    viewer.appendChild(wrap); placeholders[i]=wrap;
+  }
+  if(io)io.disconnect();
+  io=new IntersectionObserver(es=>es.forEach(en=>{ if(en.isIntersecting) renderPage(+en.target.dataset.page,scale); }),{root:viewer,rootMargin:'1000px'});
+  placeholders.forEach(w=>{ if(w) io.observe(w); });
+  requestAnimationFrame(()=>{ viewer.scrollTop=ratio*viewer.scrollHeight; });
+}
+async function renderPage(num,scale){
+  const wrap=placeholders[num]; if(!wrap||wrap.dataset.rendered)return; wrap.dataset.rendered='1';
+  wrap.classList.remove('placeholder'); wrap.textContent='';
+  const pg=await pdfDoc.getPage(num); const vp=pg.getViewport({scale});
+  const canvas=document.createElement('canvas'); canvas.width=vp.width; canvas.height=vp.height; wrap.appendChild(canvas);
+  const tl=document.createElement('div'); tl.className='textLayer'; wrap.appendChild(tl);
+  const hl=document.createElement('div'); hl.className='hlLayer'; wrap.appendChild(hl);
+  await pg.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
+  const tc=await pg.getTextContent();
+  pdfjsLib.renderTextLayer({textContent:tc,container:tl,viewport:vp,textDivs:[]});
+  drawHighlights(num);
+}
+function drawHighlights(num){
+  const wrap=placeholders[num]; if(!wrap)return; const hl=wrap.querySelector('.hlLayer'); if(!hl)return; hl.innerHTML='';
+  curState.highlights.filter(h=>h.pages&&h.pages[num]).forEach(h=>{
+    h.pages[num].forEach(r=>{ const d=document.createElement('div'); d.className='hl';
+      d.style.left=r.x*100+'%'; d.style.top=r.y*100+'%'; d.style.width=r.w*100+'%'; d.style.height=r.h*100+'%'; hl.appendChild(d); }); });
+}
+
+$('#viewer').addEventListener('scroll',()=>{
+  const v=$('#viewer'); const mid=v.scrollTop+v.clientHeight*0.35;
+  for(let i=1;i<placeholders.length;i++){ if(placeholders[i]&&placeholders[i].offsetTop<=mid) currentPage=i; }
+  if(document.activeElement!==$('#pageInput')) $('#pageInput').value=currentPage;
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>{ if(!curState)return; curState.lastPage=currentPage; curState.scrollRatio=v.scrollTop/v.scrollHeight; saveState(); },400);
+});
+function saveState(){ if(idbOK&&curState) dbPut('state',curState); }
+
+$('#zoomIn').onclick=()=>{cfg.zoom=Math.min(2.5,cfg.zoom+0.15);localStorage.setItem('air_zoom',cfg.zoom);layoutPages();};
+$('#zoomOut').onclick=()=>{cfg.zoom=Math.max(0.6,cfg.zoom-0.15);localStorage.setItem('air_zoom',cfg.zoom);layoutPages();};
+
+$('#shelfBtn').onclick=()=>{ $('#reader').style.display='none'; $('#library').style.display='block'; document.body.classList.remove('reading');
+  $('#readerTools').style.display='none'; $('#togglePanel').style.display='none'; $('#pageNav').style.display='none'; $('#titleEl').textContent='';
+  pdfDoc=null; curBook=null; renderShelf(); };
+
+/* ---------- theme + language ---------- */
+$('#themeBtn').onclick=()=>{ const o=['light','sepia','dark']; const i=o.indexOf(document.body.dataset.theme); const tm=o[(i+1)%3]; document.body.dataset.theme=tm; cfg.theme=tm; localStorage.setItem('air_theme',tm); };
+$('#langBtn').onclick=()=>{ cfg.lang=cfg.lang==='中文'?'English':'中文'; localStorage.setItem('air_lang',cfg.lang); applyLanguage(); };
+function applyLanguage(){
+  applyI18n();
+  if(curBook){ placeholders.forEach((w,i)=>{ if(w&&w.classList.contains('placeholder'))w.textContent=t('page')(i); });
+    renderChat(); renderNotes(); renderMarks(); }
+  else renderShelf();
+}
+
+/* ---------- selection ---------- */
+const bar=$('#floatBar');
+document.addEventListener('mouseup',()=>setTimeout(updateBar,10));
+document.addEventListener('touchend',()=>setTimeout(updateBar,10));
+function updateBar(){
+  const sel=window.getSelection(); const tt=sel.toString().trim();
+  if(tt.length>0 && $('#reader').style.display!=='none'){
+    selText=tt; selGroups=rectsForSelection();
+    const r=sel.getRangeAt(0).getBoundingClientRect();
+    bar.style.display='flex'; let top=r.top-46; if(top<6)top=r.bottom+8;
+    bar.style.top=top+'px'; bar.style.left=Math.max(6,Math.min(window.innerWidth-bar.offsetWidth-6,r.left))+'px';
+  } else bar.style.display='none';
+}
+function rectsForSelection(){
+  const sel=window.getSelection(); if(!sel.rangeCount)return null; const groups={};
+  for(const r of sel.getRangeAt(0).getClientRects()){
+    if(r.width<1||r.height<1)continue; const cx=r.left+r.width/2, cy=r.top+r.height/2;
+    const el=document.elementsFromPoint(cx,cy).find(e=>e.classList&&e.classList.contains('pageWrap')); if(!el)continue;
+    const pr=el.getBoundingClientRect(); const num=+el.dataset.page;
+    (groups[num]=groups[num]||[]).push({x:(r.left-pr.left)/pr.width,y:(r.top-pr.top)/pr.height,w:r.width/pr.width,h:r.height/pr.height}); }
+  return Object.keys(groups).length?groups:null;
+}
+bar.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+  bar.style.display='none'; const act=b.dataset.act;
+  if(act==='highlight'){ addHighlight(); return; }
+  if(act==='ask'){ openPanel('chat'); $('#scope').value='sel'; $('#askInput').focus(); return; }
+  const map={explain:'pExplain',translate:'pTranslate',summary:'pSummary'};
+  ask(t(map[act]), selText);
+});
+
+/* ---------- highlight + note ---------- */
+function addHighlight(){
+  if(!selGroups)return;
+  const note=prompt(t('notePrompt'),'')||'';
+  const firstPage=Math.min(...Object.keys(selGroups).map(Number));
+  const h={id:'h'+Date.now(),text:selText,note,page:firstPage,pages:selGroups,created:Date.now()};
+  curState.highlights.push(h); saveState();
+  Object.keys(selGroups).forEach(n=>drawHighlights(+n)); renderNotes();
+  window.getSelection().removeAllRanges();
+}
+function renderNotes(){
+  const p=$('#tab-notes'); p.innerHTML='';
+  if(!curState||!curState.highlights.length){ p.innerHTML='<div class="empty-hint">'+t('notesEmpty')+'</div>'; return; }
+  curState.highlights.slice().sort((a,b)=>a.page-b.page).forEach(h=>{
+    const d=document.createElement('div'); d.className='note';
+    d.innerHTML=`<button class="x">×</button><div class="t">${escapeHtml(h.text.slice(0,160))}${h.text.length>160?'…':''}</div>${h.note?`<div class="n">📝 ${escapeHtml(h.note)}</div>`:''}<div class="prog">${t('page')(h.page)}</div>`;
+    d.querySelector('.x').onclick=e=>{e.stopPropagation(); curState.highlights=curState.highlights.filter(x=>x.id!==h.id); saveState(); Object.keys(h.pages).forEach(n=>drawHighlights(+n)); renderNotes();};
+    d.onclick=()=>jumpToPage(h.page); p.appendChild(d);
+  });
+}
+
+/* ---------- bookmarks ---------- */
+$('#bmBtn').onclick=()=>{ const p=currentPage; const i=curState.bookmarks.indexOf(p); if(i>=0)curState.bookmarks.splice(i,1); else curState.bookmarks.push(p); saveState(); renderMarks(); openPanel('marks'); };
+function renderMarks(){
+  const p=$('#tab-marks'); p.innerHTML='';
+  if(!curState||!curState.bookmarks.length){ p.innerHTML='<div class="empty-hint">'+t('marksEmpty')+'</div>'; return; }
+  curState.bookmarks.slice().sort((a,b)=>a-b).forEach(pg=>{
+    const d=document.createElement('div'); d.className='bm'; d.innerHTML=`<button class="x">×</button>${t('bmPage')(pg)}`;
+    d.querySelector('.x').onclick=e=>{e.stopPropagation(); curState.bookmarks=curState.bookmarks.filter(x=>x!==pg); saveState(); renderMarks();};
+    d.onclick=()=>jumpToPage(pg); p.appendChild(d);
+  });
+}
+function jumpToPage(num){ const w=placeholders[num]; if(w){ $('#viewer').scrollTo({top:w.offsetTop-10,behavior:'smooth'}); if(window.innerWidth<=760)$('#panel').classList.remove('open'); } }
+
+/* ---------- go to page ---------- */
+function goToInput(){ if(!pdfDoc)return; let n=parseInt($('#pageInput').value,10); if(isNaN(n))return; n=Math.max(1,Math.min(pdfDoc.numPages,n)); $('#pageInput').value=n; jumpToPage(n); $('#pageInput').blur(); }
+$('#pageInput').addEventListener('keydown',e=>{ if(e.key==='Enter')goToInput(); });
+$('#pageInput').addEventListener('change',goToInput);
+$('#prevPg').onclick=()=>jumpToPage(Math.max(1,currentPage-1));
+$('#nextPg').onclick=()=>jumpToPage(Math.min(pdfDoc.numPages,currentPage+1));
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>openPanel(b.dataset.tab));
+function openPanel(tab){
+  if(window.innerWidth<=760)$('#panel').classList.add('open');
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
+  document.querySelectorAll('.tabpane').forEach(x=>x.classList.toggle('active',x.id==='tab-'+tab));
+}
+$('#togglePanel').onclick=()=>$('#panel').classList.toggle('open');
+$('#closePanel').onclick=()=>$('#panel').classList.remove('open');
+$('#panelToggle').onclick=()=>{ const col=$('#panel').classList.toggle('collapsed'); const b=$('#panelToggle'); b.textContent=col?'‹':'›'; b.style.right=col?'0':'380px'; };
+
+/* ---------- chat ---------- */
+function renderChat(){
+  const c=$('#tab-chat'); c.innerHTML='';
+  addMsgEl('ai',t('chatGreet'),null,false);
+  (curState.chat||[]).forEach(m=>addMsgEl(m.role,m.text,m.sub,false));
+  c.scrollTop=c.scrollHeight;
+}
+function addMsgEl(cls,text,sub,save){
+  const d=document.createElement('div'); d.className='msg '+cls;
+  if(sub){const s=document.createElement('div');s.className='q';s.textContent=sub;d.appendChild(s);}
+  const body=document.createElement('div'); body.className='mbody'; d.appendChild(body);
+  if(cls==='ai') body.innerHTML=mdToHtml(text); else body.textContent=text;
+  $('#tab-chat').appendChild(d); $('#tab-chat').scrollTop=$('#tab-chat').scrollHeight;
+  if(save&&curState){ curState.chat.push({role:cls,text,sub}); saveState(); }
+  return d;
+}
+$('#sendBtn').onclick=()=>{
+  const q=$('#askInput').value.trim(); if(!q)return; $('#askInput').value='';
+  const scope=$('#scope').value;
+  if(scope==='sel') ask(q, selText||'');
+  else if(scope==='page') ask(q, currentPageText());
+  else ask(q, '', true);
+};
+$('#askInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('#sendBtn').click();});
+function currentPageText(){ const tl=placeholders[currentPage]&&placeholders[currentPage].querySelector('.textLayer'); return tl?tl.innerText.replace(/\n+/g,' ').trim():''; }
+async function buildPageTexts(){ if(pageTexts)return pageTexts; pageTexts=['']; for(let i=1;i<=pdfDoc.numPages;i++){ const pg=await pdfDoc.getPage(i); const tc=await pg.getTextContent(); pageTexts[i]=tc.items.map(x=>x.str).join(' '); } return pageTexts; }
+async function buildAllText(){ if(allText)return; await buildPageTexts(); allText=pageTexts.slice(1).join('\n').slice(0,120000); }
+
+async function ask(instruction, context, isBook){
+  if(!cfg.key){ openModal(); openPanel('chat'); addMsgEl('ai',t('needKey'),null,false); return; }
+  openPanel('chat');
+  let ctx=context||'';
+  if(isBook){ await buildAllText(); ctx=allText; }
+  const shown=ctx?('「'+ctx.slice(0,60)+(ctx.length>60?'…':'')+'」'):'';
+  addMsgEl('me', instruction.replace(/[:：]\s*$/,''), shown?(t('basis')+shown):'', true);
+  const loading=addMsgEl('ai',t('thinking'),null,false);
+  const setAI=x=>{ loading.querySelector('.mbody').innerHTML=mdToHtml(x); };
+  const sys='You help readers understand books and papers. Answer in '+cfg.lang+'. Explain clearly and give concrete, real-life or runnable-code examples to aid understanding — ideally one example per key point. Use Markdown for structure and bold, but avoid empty filler bullets.';
+  const userText = ctx ? (instruction+'\n\n'+ctx) : instruction;
+  try{
+    const url='https://generativelanguage.googleapis.com/v1beta/models/'+cfg.model+':generateContent?key='+encodeURIComponent(cfg.key);
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'}, body:JSON.stringify({system_instruction:{parts:[{text:sys}]},contents:[{parts:[{text:userText}]}]})});
+    const data=await res.json();
+    if(data.error){ setAI(t('errPrefix')+data.error.message); return; }
+    const out=data?.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||t('noReturn');
+    setAI(out); if(curState){ curState.chat.push({role:'ai',text:out,sub:null}); saveState(); }
+  }catch(err){ setAI(t('netErr')+err.message); }
+  $('#tab-chat').scrollTop=$('#tab-chat').scrollHeight;
+}
+
+/* ---------- AI 找页 / find page ---------- */
+$('#findBtn').onclick=doFind;
+$('#findInput').addEventListener('keydown',e=>{if(e.key==='Enter')doFind();});
+async function doFind(){
+  const q=$('#findInput').value.trim(); if(!q||!pdfDoc)return;
+  if(!cfg.key){ openModal(); return; }
+  const box=$('#findResults'); box.innerHTML='<div class="empty-hint">'+t('findThinking')+'</div>';
+  await buildPageTexts();
+  const terms=q.toLowerCase().split(/[\s，,、。.]+/).filter(w=>w.length>1);
+  const scored=[]; for(let i=1;i<pageTexts.length;i++){ const low=pageTexts[i].toLowerCase(); let s=0; terms.forEach(tm=>{ if(low.includes(tm))s++; }); scored.push([i,s]); }
+  scored.sort((a,b)=>b[1]-a[1]);
+  let cand=scored.filter(x=>x[1]>0).slice(0,30).map(x=>x[0]);
+  if(cand.length<3) cand=scored.slice(0,Math.min(40,pageTexts.length-1)).map(x=>x[0]);
+  cand.sort((a,b)=>a-b);
+  let ctx=''; for(const p of cand){ ctx+='[Page '+p+'] '+pageTexts[p].slice(0,1200)+'\n'; if(ctx.length>110000)break; }
+  const sys='You locate pages in a book. Given the user query and page-tagged text, return the most relevant pages by relevance. Output ONLY a JSON array, each item {"page":number,"reason":"one short sentence in '+cfg.lang+' on what that page covers"}, max 5 items, no other text.';
+  try{
+    const url='https://generativelanguage.googleapis.com/v1beta/models/'+cfg.model+':generateContent?key='+encodeURIComponent(cfg.key);
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'}, body:JSON.stringify({system_instruction:{parts:[{text:sys}]},contents:[{parts:[{text:'Query: '+q+'\n\n'+ctx}]}]})});
+    const data=await res.json();
+    if(data.error){ box.innerHTML='<div class="empty-hint">'+t('errPrefix')+escapeHtml(data.error.message)+'</div>'; return; }
+    let out=(data?.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||'').trim().replace(/```json/gi,'').replace(/```/g,'').trim();
+    let items=[]; try{ items=JSON.parse(out); }catch(e){ const m=out.match(/\d+/g); if(m)items=[...new Set(m.map(Number))].slice(0,5).map(p=>({page:p,reason:''})); }
+    if(!items.length){ box.innerHTML='<div class="empty-hint">'+t('findNone')+'</div>'; return; }
+    box.innerHTML='';
+    items.forEach(it=>{ const p=Math.max(1,Math.min(pdfDoc.numPages,it.page));
+      const d=document.createElement('div'); d.className='bm';
+      d.innerHTML=t('findPage')(p)+(it.reason?'<div class="n" style="font-style:italic;color:var(--muted);font-size:12px;margin-top:4px">'+escapeHtml(it.reason)+'</div>':'');
+      d.onclick=()=>jumpToPage(p); box.appendChild(d); });
+  }catch(err){ box.innerHTML='<div class="empty-hint">'+t('netErr')+escapeHtml(err.message)+'</div>'; }
+}
+
+/* ---------- settings ---------- */
+const KNOWN_MODELS=[...$('#model').options].map(o=>o.value);
+function openModal(){
+  $('#apiKey').value=cfg.key; $('#lang').value=cfg.lang;
+  if(KNOWN_MODELS.includes(cfg.model)&&cfg.model!=='__custom'){ $('#model').value=cfg.model; $('#modelCustom').style.display='none'; $('#modelCustom').value=''; }
+  else { $('#model').value='__custom'; $('#modelCustom').style.display='block'; $('#modelCustom').value=cfg.model; }
+  $('#modal').style.display='flex';
+}
+$('#model').onchange=()=>{ const c=$('#model').value==='__custom'; $('#modelCustom').style.display=c?'block':'none'; if(c)$('#modelCustom').focus(); };
+$('#settingsBtn').onclick=openModal;
+$('#closeModal').onclick=()=>$('#modal').style.display='none';
+$('#saveSettings').onclick=()=>{
+  cfg.key=$('#apiKey').value.trim();
+  cfg.model = $('#model').value==='__custom' ? ($('#modelCustom').value.trim()||'gemini-2.5-flash-lite') : $('#model').value;
+  cfg.lang=$('#lang').value;
+  localStorage.setItem('air_key',cfg.key); localStorage.setItem('air_model',cfg.model); localStorage.setItem('air_lang',cfg.lang);
+  $('#modal').style.display='none'; applyLanguage();
+};
+</script>
+</body>
+</html>
