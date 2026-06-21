@@ -144,7 +144,7 @@
     /* 16px 防止 iOS 聚焦输入框时自动放大 */
     .ask input,#findInput,#pageInput,.card2 input,.card2 select,.scope select{font-size:16px}
     #refToggle{display:none!important}
-    #refDock{position:fixed;inset:0;width:auto!important;min-width:0;height:auto;border:none;z-index:66;display:flex!important;flex-direction:column;transform:translateX(-100%);transition:transform .25s}
+    #refDock{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto!important;min-width:0;height:58vh;border:none;border-top:1px solid var(--line);border-radius:14px 14px 0 0;z-index:66;display:flex!important;flex-direction:column;transform:translateY(100%);transition:transform .25s;box-shadow:0 -4px 16px rgba(0,0,0,.2)}
     body.refon #refDock{transform:none}
     #refDock.collapsed .rdbody{display:flex}
     #rdResize{display:none}
