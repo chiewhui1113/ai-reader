@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>AI 看书 · AI Reader</title>
+<title>问读 · AskRead</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root{ --bg:#f6f7f9; --panel:#fff; --ink:#1c1f23; --muted:#6b7280; --line:#e5e7eb; --accent:#4f46e5; --accent2:#eef2ff; --pageFilter:none; --card:#fff; }
@@ -97,6 +97,12 @@
   body.reading #panelToggle{display:block}
   #panel.collapsed{display:none}
   @media(max-width:760px){ #panelToggle{display:none!important} }
+  #transPop{position:fixed;max-width:340px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:14px;line-height:1.6;box-shadow:0 6px 20px rgba(0,0,0,.2);z-index:90}
+  #transPop .tpc{font-size:11px;color:var(--muted);margin-bottom:3px}
+  #snipBox{position:fixed;border:2px solid var(--accent);background:rgba(79,70,229,.16);z-index:80;pointer-events:none;border-radius:2px}
+  body.snip #viewer{cursor:crosshair}
+  #snipHint{display:none;position:fixed;top:54px;left:50%;transform:translateX(-50%);z-index:85;background:#23262d;color:#fff;padding:6px 14px;border-radius:20px;font-size:13px;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+  body.snip #snipHint{display:block}
   #banner{display:none;background:#fde68a;color:#7c5700;padding:7px 12px;font-size:12.5px;text-align:center}
   @media(max-width:760px){
     #panel{position:absolute;inset:0;width:100%;z-index:60;transform:translateX(100%);transition:.25s}
@@ -122,8 +128,9 @@
 </head>
 <body data-theme="light">
 <div id="banner"></div>
+<div id="snipHint"></div>
 <header>
-  <h1 data-i18n="appName">📖 AI 看书</h1>
+  <h1 data-i18n="appName">📖 问读</h1>
   <button class="btn" id="shelfBtn" data-i18n="shelf">书架</button>
   <span class="title" id="titleEl"></span>
   <span id="pageNav" style="display:none">
@@ -136,6 +143,7 @@
   <span id="readerTools" style="display:none">
     <button class="btn desk-only" id="zoomOut">A−</button>
     <button class="btn desk-only" id="zoomIn">A+</button>
+    <button class="btn" id="snipBtn" title="截图问AI / Snip & ask">📷<span class="bmtxt" data-i18n="snipWord"> 截取</span></button>
     <button class="btn" id="bmBtn" title="书签 / Bookmark">🔖<span class="bmtxt" data-i18n="bmWord"> 书签</span></button>
   </span>
   <button class="btn" id="langBtn">EN</button>
@@ -181,6 +189,7 @@
             <option value="book" data-i18n="scopeBook">整本书</option>
           </select>
           <div class="spacer"></div>
+          <button class="btn" id="clearChat" title="清空对话 / Clear chat" style="padding:3px 8px">🗑</button>
           <button class="btn mobile-only" id="closePanel" style="padding:3px 8px" data-i18n="close">关闭</button>
         </div>
         <div class="inrow">
@@ -199,6 +208,7 @@
   <button data-act="highlight" data-i18n="fHighlight">🖍 高亮</button>
   <button data-act="ask" data-i18n="fAsk">❓ 提问</button>
 </div>
+<div id="transPop" style="display:none"></div>
 
 <div id="modal">
   <div class="card2">
@@ -236,11 +246,11 @@ const $ = s => document.querySelector(s);
 
 /* ---------- i18n ---------- */
 const I18N={
-  zh:{ appName:"📖 AI 看书", shelf:"书架", bookmarkBtn:"🔖 书签", bmWord:" 书签", addPdf:"添加 PDF",
+  zh:{ appName:"📖 问读", shelf:"书架", bookmarkBtn:"🔖 书签", bmWord:" 书签", snipWord:" 截取", snipHint:"拖动框选要问的区域，松手即问AI（再点📷退出）", imgTag:"📷 截图", addPdf:"添加 PDF",
     tabAI:"💬 AI", tabFind:"🔎 找页", tabNotes:"✏️ 笔记", tabMarks:"🔖 书签",
     findPh:"描述要找的内容，如：讲注意力机制的部分", findBtn:"找",
     scopeLabel:"范围：", scopeSel:"选中文字", scopePage:"当前页", scopeBook:"整本书",
-    close:"关闭", askPh:"问我任何问题…", send:"发送",
+    close:"关闭", askPh:"问我任何问题…", send:"发送", explainPh:"想问关于这段的什么？留空直接发=通俗解释",
     fExplain:"💡 解释", fTranslate:"🌐 翻译", fSummary:"📝 总结", fHighlight:"🖍 高亮", fAsk:"❓ 提问",
     prev:"上一页", next:"下一页", pageInput:"输入页码后回车跳转",
     setTitle:"设置", setIntro:"本阅读器调用 Google Gemini 的免费额度。Key 只存在你本机浏览器，不上传任何服务器。",
@@ -254,7 +264,7 @@ const I18N={
     findNone:"没找到明显相关的页，换个说法再试试。", findMore:"🔄 都不对？找更多", findNoMore:"没有更多相关页了。",
     notesEmpty:"选中文字后点 🖍 高亮，可加笔记。这里会列出本书所有高亮和笔记。",
     marksEmpty:"点工具栏 🔖 把当前页加入书签。",
-    notePrompt:"给这段高亮加条笔记（可留空）：", delConfirm:"删除这本书及其笔记？",
+    notePrompt:"给这段高亮加条笔记（可留空）：", delConfirm:"删除这本书及其笔记？", clearConfirm:"清空本书的对话记录？",
     banner:"⚠️ 当前打开方式无法保存书籍/进度（Chrome 双击本地文件的限制）。建议部署到 GitHub Pages 后用网址打开，记忆功能即正常。",
     basis:"依据：", langBtn:"EN",
     page:n=>"第 "+n+" 页", bmPage:n=>"🔖 第 "+n+" 页", findPage:n=>"📄 第 "+n+" 页",
@@ -262,11 +272,11 @@ const I18N={
     pExplain:"请用通俗易懂的方式解释下面这段文字，并多举具体例子帮助理解：",
     pTranslate:"请把下面这段文字翻译成中文：", pSummary:"请用一两句话总结下面这段文字的核心意思："
   },
-  en:{ appName:"📖 AI Reader", shelf:"Library", bookmarkBtn:"🔖 Bookmark", bmWord:" Bookmark", addPdf:"Add PDF",
+  en:{ appName:"📖 AskRead", shelf:"Library", bookmarkBtn:"🔖 Bookmark", bmWord:" Bookmark", snipWord:" Snip", snipHint:"Drag to box the area, release to ask AI (tap 📷 to exit)", imgTag:"📷 Snippet", addPdf:"Add PDF",
     tabAI:"💬 AI", tabFind:"🔎 Find", tabNotes:"✏️ Notes", tabMarks:"🔖 Marks",
     findPh:"Describe what you want, e.g. the part on attention", findBtn:"Find",
     scopeLabel:"Scope:", scopeSel:"Selection", scopePage:"This page", scopeBook:"Whole book",
-    close:"Close", askPh:"Ask me anything…", send:"Send",
+    close:"Close", askPh:"Ask me anything…", send:"Send", explainPh:"Ask about this passage — or send empty for a plain explanation",
     fExplain:"💡 Explain", fTranslate:"🌐 Translate", fSummary:"📝 Summary", fHighlight:"🖍 Highlight", fAsk:"❓ Ask",
     prev:"Previous page", next:"Next page", pageInput:"Type a page number and press Enter",
     setTitle:"Settings", setIntro:"This reader uses Google Gemini's free tier. Your key is stored only in your browser and never uploaded.",
@@ -280,7 +290,7 @@ const I18N={
     findNone:"No clearly relevant page found. Try rephrasing.", findMore:"🔄 Not it? Find more", findNoMore:"No more relevant pages.",
     notesEmpty:"Select text and tap 🖍 Highlight to add a note. All highlights and notes for this book show up here.",
     marksEmpty:"Tap 🔖 in the toolbar to bookmark the current page.",
-    notePrompt:"Add a note for this highlight (optional):", delConfirm:"Delete this book and its notes?",
+    notePrompt:"Add a note for this highlight (optional):", delConfirm:"Delete this book and its notes?", clearConfirm:"Clear this book's chat history?",
     banner:"⚠️ This open mode can't save books/progress (Chrome blocks storage for local files). Deploy to GitHub Pages and open via URL for full memory.",
     basis:"Context: ", langBtn:"中",
     page:n=>"Page "+n, bmPage:n=>"🔖 Page "+n, findPage:n=>"📄 Page "+n,
@@ -324,7 +334,7 @@ function dbAll(s){return new Promise((res,rej)=>{const r=tx(s,'readonly').getAll
 function dbPut(s,v){return new Promise((res,rej)=>{const r=tx(s,'readwrite').put(v);r.onsuccess=()=>res();r.onerror=()=>rej(r.error);});}
 function dbDel(s,k){return new Promise((res,rej)=>{const r=tx(s,'readwrite').delete(k);r.onsuccess=()=>res();r.onerror=()=>rej(r.error);});}
 
-let pdfDoc=null, curBook=null, curState=null, baseScale=1, placeholders=[], allText=null, pageTexts=null, currentPage=1, selText="", selGroups=null, saveTimer=null, io=null;
+let pdfDoc=null, curBook=null, curState=null, baseScale=1, placeholders=[], allText=null, pageTexts=null, currentPage=1, selText="", selGroups=null, saveTimer=null, io=null, pendingImage=null, snipActive=false, snipBox=null, snipSX=0, snipSY=0, selRect=null, explainPending=false;
 
 (async()=>{
   applyI18n();
@@ -451,6 +461,7 @@ $('#viewer').addEventListener('scroll',()=>{
   const v=$('#viewer'); const mid=v.scrollTop+v.clientHeight*0.35;
   for(let i=1;i<placeholders.length;i++){ if(placeholders[i]&&placeholders[i].offsetTop<=mid) currentPage=i; }
   if(document.activeElement!==$('#pageInput')) $('#pageInput').value=currentPage;
+  { const tp=$('#transPop'); if(tp.style.display!=='none')tp.style.display='none'; }
   clearTimeout(saveTimer);
   saveTimer=setTimeout(()=>{ if(!curState)return; curState.lastPage=currentPage; curState.scrollRatio=v.scrollTop/v.scrollHeight; saveState(); },400);
 });
@@ -478,10 +489,12 @@ const bar=$('#floatBar');
 document.addEventListener('mouseup',()=>setTimeout(updateBar,10));
 document.addEventListener('touchend',()=>setTimeout(updateBar,10));
 function updateBar(){
+  if(snipActive)return;
   const sel=window.getSelection(); const tt=sel.toString().trim();
   if(tt.length>0 && $('#reader').style.display!=='none'){
+    pendingImage=null; explainPending=false; bar.querySelector('[data-act=highlight]').style.display='';
     selText=tt; selGroups=rectsForSelection();
-    const r=sel.getRangeAt(0).getBoundingClientRect();
+    const r=sel.getRangeAt(0).getBoundingClientRect(); selRect=r;
     bar.style.display='flex'; let top=r.top-46; if(top<6)top=r.bottom+8;
     bar.style.top=top+'px'; bar.style.left=Math.max(6,Math.min(window.innerWidth-bar.offsetWidth-6,r.left))+'px';
   } else bar.style.display='none';
@@ -497,11 +510,79 @@ function rectsForSelection(){
 }
 bar.querySelectorAll('button').forEach(b=>b.onclick=()=>{
   bar.style.display='none'; const act=b.dataset.act;
-  if(act==='highlight'){ addHighlight(); return; }
-  if(act==='ask'){ openPanel('chat'); $('#scope').value='sel'; $('#askInput').focus(); return; }
   const map={explain:'pExplain',translate:'pTranslate',summary:'pSummary'};
+  if(pendingImage){
+    if(act==='translate'||act==='summary'){ const im=pendingImage; pendingImage=null; ask(t(map[act]),'',false,im); return; }
+    // explain / ask / highlight → 让用户先输入问题，留空=默认解释
+    explainPending=true; openPanel('chat'); const inp=$('#askInput'); inp.placeholder=t(act==='ask'?'askPh':'explainPh'); inp.focus(); return;
+  }
+  if(act==='highlight'){ addHighlight(); return; }
+  if(act==='translate'){ translateInline(selText); return; }
+  if(act==='explain'||act==='ask'){
+    explainPending=(act==='explain'); openPanel('chat'); $('#scope').value='sel';
+    const inp=$('#askInput'); inp.placeholder=t(act==='explain'?'explainPh':'askPh'); inp.focus(); return;
+  }
   ask(t(map[act]), selText);
 });
+
+/* ---------- inline translate popover ---------- */
+async function geminiText(prompt){
+  const url='https://generativelanguage.googleapis.com/v1beta/models/'+cfg.model+':generateContent?key='+encodeURIComponent(cfg.key);
+  const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
+  const data=await res.json(); if(data.error)throw new Error(data.error.message);
+  return data?.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||'';
+}
+async function translateInline(text){
+  if(!cfg.key){ openModal(); return; }
+  showTransPop(t('thinking'));
+  try{ const out=await geminiText('Translate the following into '+cfg.lang+'. Output only the translation, no notes or pinyin:\n\n'+text); showTransPop(out); }
+  catch(e){ showTransPop(t('netErr')+e.message); }
+}
+function showTransPop(text){
+  const p=$('#transPop'); p.innerHTML='<div class="tpc">'+t('fTranslate')+'</div>'+escapeHtml(text); p.style.display='block';
+  const r=selRect||{left:80,top:100,bottom:130};
+  p.style.left=Math.max(8,Math.min(window.innerWidth-p.offsetWidth-8,r.left))+'px';
+  let top=r.bottom+8; if(top+p.offsetHeight>window.innerHeight-8) top=Math.max(8,r.top-p.offsetHeight-8);
+  p.style.top=top+'px';
+}
+document.addEventListener('pointerdown',e=>{ const p=$('#transPop'); if(p.style.display!=='none'&&!p.contains(e.target)&&!bar.contains(e.target)) p.style.display='none'; });
+
+/* ---------- clear chat ---------- */
+$('#clearChat').onclick=()=>{ if(!curState||!curState.chat.length)return; if(!confirm(t('clearConfirm')))return; curState.chat=[]; saveState(); renderChat(); };
+
+/* ---------- snip region → image ---------- */
+function setSnip(on){
+  snipActive=on; document.body.classList.toggle('snip',on);
+  $('#viewer').style.touchAction=on?'none':''; $('#snipBtn').classList.toggle('primary',on);
+  $('#snipHint').textContent=t('snipHint');
+  if(!on&&snipBox){snipBox.remove();snipBox=null;}
+}
+$('#snipBtn').onclick=()=>{ if(!pdfDoc)return; bar.style.display='none'; setSnip(!snipActive); };
+$('#viewer').addEventListener('pointerdown',e=>{ if(!snipActive)return; e.preventDefault();
+  snipSX=e.clientX; snipSY=e.clientY; snipBox=document.createElement('div'); snipBox.id='snipBox'; document.body.appendChild(snipBox); drawSnip(e.clientX,e.clientY); });
+window.addEventListener('pointermove',e=>{ if(snipActive&&snipBox){ e.preventDefault(); drawSnip(e.clientX,e.clientY); } });
+window.addEventListener('pointerup',()=>{ if(snipActive&&snipBox) finishSnip(); });
+function drawSnip(x,y){ const l=Math.min(snipSX,x),tp=Math.min(snipSY,y); snipBox.style.left=l+'px'; snipBox.style.top=tp+'px'; snipBox.style.width=Math.abs(x-snipSX)+'px'; snipBox.style.height=Math.abs(y-snipSY)+'px'; }
+function finishSnip(){
+  const r=snipBox.getBoundingClientRect(); snipBox.remove(); snipBox=null; setSnip(false);
+  if(r.width<6||r.height<6)return;
+  const img=cropRegion(r); if(!img)return;
+  pendingImage=img; bar.querySelector('[data-act=highlight]').style.display='none'; bar.style.display='flex';
+  let top=r.top-46; if(top<6)top=r.bottom+8;
+  bar.style.top=top+'px'; bar.style.left=Math.max(6,Math.min(window.innerWidth-bar.offsetWidth-6,r.left))+'px';
+}
+function cropRegion(r){
+  const cx=r.left+r.width/2, cy=r.top+r.height/2;
+  const wrap=document.elementsFromPoint(cx,cy).find(e=>e.classList&&e.classList.contains('pageWrap'));
+  if(!wrap)return null; const canvas=wrap.querySelector('canvas'); if(!canvas)return null;
+  const cr=canvas.getBoundingClientRect();
+  const x1=Math.max(r.left,cr.left),y1=Math.max(r.top,cr.top),x2=Math.min(r.right,cr.right),y2=Math.min(r.bottom,cr.bottom);
+  if(x2-x1<4||y2-y1<4)return null;
+  const fx=canvas.width/cr.width, fy=canvas.height/cr.height;
+  const tmp=document.createElement('canvas'); tmp.width=(x2-x1)*fx; tmp.height=(y2-y1)*fy;
+  tmp.getContext('2d').drawImage(canvas,(x1-cr.left)*fx,(y1-cr.top)*fy,tmp.width,tmp.height,0,0,tmp.width,tmp.height);
+  return tmp.toDataURL('image/png');
+}
 
 /* ---------- highlight + note ---------- */
 function addHighlight(){
@@ -547,6 +628,8 @@ $('#nextPg').onclick=()=>jumpToPage(Math.min(pdfDoc.numPages,currentPage+1));
 /* ---------- tabs ---------- */
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>openPanel(b.dataset.tab));
 function openPanel(tab){
+  $('#panel').classList.remove('collapsed');
+  const pt=$('#panelToggle'); if(pt){ pt.textContent='›'; pt.style.right='380px'; }
   if(window.innerWidth<=760)$('#panel').classList.add('open');
   document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
   document.querySelectorAll('.tabpane').forEach(x=>x.classList.toggle('active',x.id==='tab-'+tab));
@@ -559,20 +642,27 @@ $('#panelToggle').onclick=()=>{ const col=$('#panel').classList.toggle('collapse
 function renderChat(){
   const c=$('#tab-chat'); c.innerHTML='';
   addMsgEl('ai',t('chatGreet'),null,false);
-  (curState.chat||[]).forEach(m=>addMsgEl(m.role,m.text,m.sub,false));
+  (curState.chat||[]).forEach(m=>addMsgEl(m.role,m.text,m.sub,false,m.image));
   c.scrollTop=c.scrollHeight;
 }
-function addMsgEl(cls,text,sub,save){
+function addMsgEl(cls,text,sub,save,image){
   const d=document.createElement('div'); d.className='msg '+cls;
   if(sub){const s=document.createElement('div');s.className='q';s.textContent=sub;d.appendChild(s);}
   const body=document.createElement('div'); body.className='mbody'; d.appendChild(body);
-  if(cls==='ai') body.innerHTML=mdToHtml(text); else body.textContent=text;
+  if(image){ const im=document.createElement('img'); im.src=image; im.style.cssText='max-width:100%;border-radius:8px;margin-bottom:6px;display:block;border:1px solid var(--line)'; body.appendChild(im); }
+  if(cls==='ai'){ const tb=document.createElement('div'); tb.innerHTML=mdToHtml(text); body.appendChild(tb); }
+  else if(text){ const tb=document.createElement('div'); tb.textContent=text; body.appendChild(tb); }
   $('#tab-chat').appendChild(d); $('#tab-chat').scrollTop=$('#tab-chat').scrollHeight;
-  if(save&&curState){ curState.chat.push({role:cls,text,sub}); saveState(); }
+  if(save&&curState){ curState.chat.push({role:cls,text,sub,image}); saveState(); }
   return d;
 }
 $('#sendBtn').onclick=()=>{
-  const q=$('#askInput').value.trim(); if(!q)return; $('#askInput').value='';
+  const inp=$('#askInput'); const q=inp.value.trim();
+  if(explainPending){ explainPending=false; inp.value=''; inp.placeholder=t('askPh');
+    if(pendingImage){ const im=pendingImage; pendingImage=null; ask(q||t('pExplain'),'',false,im); }
+    else ask(q||t('pExplain'), selText||''); return; }
+  if(!q)return; inp.value='';
+  if(pendingImage){ const im=pendingImage; pendingImage=null; ask(q,'',false,im); return; }
   const scope=$('#scope').value;
   if(scope==='sel') ask(q, selText||'');
   else if(scope==='page') ask(q, currentPageText());
@@ -583,20 +673,22 @@ function currentPageText(){ const tl=placeholders[currentPage]&&placeholders[cur
 async function buildPageTexts(){ if(pageTexts)return pageTexts; pageTexts=['']; for(let i=1;i<=pdfDoc.numPages;i++){ const pg=await pdfDoc.getPage(i); const tc=await pg.getTextContent(); pageTexts[i]=tc.items.map(x=>x.str).join(' '); } return pageTexts; }
 async function buildAllText(){ if(allText)return; await buildPageTexts(); allText=pageTexts.slice(1).join('\n').slice(0,120000); }
 
-async function ask(instruction, context, isBook){
+async function ask(instruction, context, isBook, image){
   if(!cfg.key){ openModal(); openPanel('chat'); addMsgEl('ai',t('needKey'),null,false); return; }
   openPanel('chat');
   let ctx=context||'';
   if(isBook){ await buildAllText(); ctx=allText; }
-  const shown=ctx?('「'+ctx.slice(0,60)+(ctx.length>60?'…':'')+'」'):'';
-  addMsgEl('me', instruction.replace(/[:：]\s*$/,''), shown?(t('basis')+shown):'', true);
+  const shown = image? t('imgTag') : (ctx?('「'+ctx.slice(0,60)+(ctx.length>60?'…':'')+'」'):'');
+  addMsgEl('me', instruction.replace(/[:：]\s*$/,''), shown?(t('basis')+shown):'', true, image);
   const loading=addMsgEl('ai',t('thinking'),null,false);
   const setAI=x=>{ loading.querySelector('.mbody').innerHTML=mdToHtml(x); };
-  const sys='You help readers understand books and papers. Answer in '+cfg.lang+'. Explain clearly and give concrete, real-life or runnable-code examples to aid understanding — ideally one example per key point. Use Markdown for structure and bold, but avoid empty filler bullets.';
-  const userText = ctx ? (instruction+'\n\n'+ctx) : instruction;
+  const sys='You are a reading assistant inside an e-reader. The user is reading a book/PDF, and every question relates to that book or the selected text/image — interpret it in that context and stay on topic. Answer in '+cfg.lang+'. Match answer length to the question: keep simple questions to 1-3 sentences, and only go longer or add an example when the concept genuinely needs it. Be concise and direct. Use light Markdown only when it actually helps.';
+  const userText = (ctx && !image) ? (instruction+'\n\n'+ctx) : instruction;
+  const parts=[{text:userText}];
+  if(image) parts.push({inline_data:{mime_type:'image/png', data:image.split(',')[1]}});
   try{
     const url='https://generativelanguage.googleapis.com/v1beta/models/'+cfg.model+':generateContent?key='+encodeURIComponent(cfg.key);
-    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'}, body:JSON.stringify({system_instruction:{parts:[{text:sys}]},contents:[{parts:[{text:userText}]}]})});
+    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'}, body:JSON.stringify({system_instruction:{parts:[{text:sys}]},contents:[{parts}]})});
     const data=await res.json();
     if(data.error){ setAI(t('errPrefix')+data.error.message); return; }
     const out=data?.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||t('noReturn');

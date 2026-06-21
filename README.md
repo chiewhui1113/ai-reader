@@ -1,6 +1,6 @@
 <div align="center">
 
-# 📖 AI Reader
+# 📖 AskRead · 问读
 
 **Read a PDF, hit a confusing bit, select it — and the AI explains it right there.**
 No copy-pasting into another tab. No leaving your book.
