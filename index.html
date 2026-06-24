@@ -764,7 +764,7 @@ function openPanel(tab){
   document.querySelectorAll('.tabpane').forEach(x=>x.classList.toggle('active',x.id==='tab-'+tab));
   syncBackdrop();
 }
-function syncBackdrop(){ const on=window.innerWidth<=760 && ($('#panel').classList.contains('open')||document.body.classList.contains('refon')); $('#sheetBackdrop').style.display=on?'block':'none'; }
+function syncBackdrop(){ const on=window.innerWidth<=760 && $('#panel').classList.contains('open'); $('#sheetBackdrop').style.display=on?'block':'none'; }
 $('#sheetBackdrop').onclick=()=>{ $('#panel').classList.remove('open'); document.body.classList.remove('refon'); syncBackdrop(); };
 $('#togglePanel').onclick=()=>{ $('#panel').classList.toggle('open'); syncBackdrop(); };
 $('#closePanel').onclick=()=>{ $('#panel').classList.remove('open'); syncBackdrop(); };
