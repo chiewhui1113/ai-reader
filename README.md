@@ -30,15 +30,17 @@ English · [中文](README.zh.md)
 
 ## 🚀 Use it
 
-1. Click ⚙ and paste a free key from [Google AI Studio](https://aistudio.google.com/app/apikey) (stays in your browser only).
+1. Click ⚙ and paste a free API key. Either works — it's auto-detected:
+   - **Google Gemini** (default, recommended): [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+   - **OpenRouter** (many free models): [openrouter.ai/keys](https://openrouter.ai/keys)
 2. Add a PDF and read.
 3. Select text → Explain / Translate / Summarize, or just ask.
 
-Tip: `gemini-2.5-flash-lite` has the most free quota.
+Tips: translation uses a free instant translator (no key needed). The AI auto-switches between models if one is busy. Set the answer style (Concise / Balanced / Detailed) in ⚙. For asking about a snipped image, pick a vision (👁) model.
 
 ## 🔒 Your stuff stays yours
 
-Books, notes, and progress live in your own browser — nothing is uploaded anywhere. The AI runs on your own free Gemini key.
+Books, notes, and progress live in your own browser — nothing is uploaded anywhere. The AI runs on your own free key (Gemini or OpenRouter).
 
 ## 📄 License
 

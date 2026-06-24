@@ -30,15 +30,17 @@
 
 ## 🚀 怎么用
 
-1. 点 ⚙，去 [Google AI Studio](https://aistudio.google.com/app/apikey) 拿一个免费 Key 粘进去（只存在你自己的浏览器）。
-2. 添加一本 PDF，开始看。
-3. 选中文字 → 解释 / 翻译 / 总结，或者直接提问。
+1. 点 ⚙ 粘一个免费 API Key,两种都行(自动识别):
+   - **Google Gemini**(默认推荐):[aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+   - **OpenRouter**(多个免费模型):[openrouter.ai/keys](https://openrouter.ai/keys)
+2. 添加一本 PDF,开始看。
+3. 选中文字 → 解释 / 翻译 / 总结,或者直接提问。
 
-小贴士：`gemini-2.5-flash-lite` 免费额度最多。
+小贴士:翻译走免费即时翻译(无需 Key)。AI 在模型繁忙时会自动切换备用。可在 ⚙ 里选回答风格(简洁 / 适中 / 详细)。要对截图问图,请选支持看图(👁)的模型。
 
 ## 🔒 数据都是你的
 
-书、笔记、进度都存在你自己的浏览器里，不上传到任何地方。AI 用你自己的免费 Gemini Key。
+书、笔记、进度都存在你自己的浏览器里,不上传到任何地方。AI 用你自己的免费 Key(Gemini 或 OpenRouter)。
 
 ## 📄 License
 

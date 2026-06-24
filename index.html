@@ -65,6 +65,12 @@
   .msg.ai p{margin:6px 0}
   .msg.ai code{background:rgba(125,125,125,.18);padding:1px 5px;border-radius:4px;font-size:13px}
   .msg.ai strong{font-weight:700}
+  .msg.ai a{color:var(--accent);word-break:break-all}
+  .msg.ai hr{border:none;border-top:1px solid var(--line);margin:8px 0}
+  .msg.ai .mdq{border-left:3px solid var(--accent);padding:2px 10px;margin:6px 0;color:var(--muted)}
+  .msg.ai .mdt{border-collapse:collapse;margin:8px 0;font-size:13px;display:block;overflow-x:auto;max-width:100%}
+  .msg.ai .mdt th,.msg.ai .mdt td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}
+  .msg.ai .mdt th{background:var(--accent2);font-weight:600;white-space:nowrap}
   .copyBtn{display:block;margin-top:6px;background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:2px 2px;opacity:.7}
   .copyBtn:hover{color:var(--accent);opacity:1}
   .ask{border-top:1px solid var(--line);padding:9px;display:flex;flex-direction:column;gap:7px}
@@ -268,24 +274,28 @@
 <div id="modal">
   <div class="card2">
     <h3 data-i18n="setTitle">设置</h3>
-    <p data-i18n="setIntro">本阅读器调用 Google Gemini 的免费额度。Key 只存在你本机浏览器，不上传任何服务器。</p>
-    <label data-i18n="setKeyHow">免费拿 Key（30 秒）</label>
-    <p data-i18n="setKeySteps">1. 打开 <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a> 用谷歌账号登录；2. 点 “Create API key”，复制 Key；3. 粘贴到下面保存。</p>
+    <p data-i18n="setIntro">本阅读器调用 OpenRouter 的免费模型（一个 Key 接通多家，更稳定）。Key 只存在你本机浏览器，不上传任何服务器。</p>
+    <label data-i18n="setKeyHow">免费拿 Key（1 分钟）</label>
+    <p data-i18n="setKeySteps">1. 打开 <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a>（邮箱注册，免费、无需信用卡）；2. 点 “Create Key” 复制；3. 粘贴到下面保存。</p>
     <label data-i18n="setKey">API Key</label>
     <input id="apiKey" type="password" data-i18n-ph="setKeyPh">
-    <label data-i18n="setModel">模型（免费层，额度从高到低）</label>
+    <label data-i18n="setModel">模型（全部免费）</label>
     <select id="model">
-      <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
-      <option value="gemini-2.5-flash">gemini-2.5-flash</option>
-      <option value="gemini-2.5-pro">gemini-2.5-pro</option>
-      <option value="gemini-flash-latest">gemini-flash-latest</option>
-      <option value="gemini-flash-lite-latest">gemini-flash-lite-latest</option>
-      <option value="gemini-3-flash-preview">gemini-3-flash-preview</option>
-      <option value="gemini-3.1-flash-lite-preview">gemini-3.1-flash-lite-preview</option>
+      <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B（通用·推荐）</option>
+      <option value="deepseek/deepseek-chat:free">DeepSeek V3（快）</option>
+      <option value="deepseek/deepseek-r1:free">DeepSeek R1（推理强）</option>
+      <option value="qwen/qwen-2.5-72b-instruct:free">Qwen2.5 72B</option>
+      <option value="google/gemma-3-27b-it:free">Gemma 3 27B（支持看图/截图）</option>
       <option value="__custom">⌨ 自定义 / Custom…</option>
     </select>
-    <input id="modelCustom" style="margin-top:8px;display:none" data-i18n-ph="setModelCustom" placeholder="自定义模型名，如 gemini-3-pro-preview">
-    <p data-i18n="setModelTip" style="margin-top:6px">提示：若提示「quota exceeded / limit: 0」，多半是该模型免费层无额度或当天用超，换额度更高的模型或隔一会再试。</p>
+    <input id="modelCustom" style="margin-top:8px;display:none" data-i18n-ph="setModelCustom" placeholder="自定义模型 ID，如 mistralai/mistral-small:free">
+    <p data-i18n="setModelTip" style="margin-top:6px">提示：免费模型约 20 次/分钟、200 次/天。任一模型繁忙会自动切换备用模型。截图问图请用支持看图的模型（如 Gemma 3）。</p>
+    <label data-i18n="setStyle">回答风格</label>
+    <select id="style">
+      <option value="concise">简洁直接 / Concise</option>
+      <option value="balanced">适中（推荐）/ Balanced</option>
+      <option value="detailed">详细·多例子 / Detailed</option>
+    </select>
     <label data-i18n="setLang">语言 / Language</label>
     <select id="lang"><option value="中文">中文</option><option value="English">English</option></select>
     <div class="rowend">
@@ -308,11 +318,11 @@ const I18N={
     close:"关闭", askPh:"问我任何问题…", send:"发送", explainPh:"想问关于这段的什么？留空直接发=通俗解释",
     fExplain:"💡 解释", fTranslate:"🌐 翻译", fSummary:"📝 总结", fHighlight:"🖍 高亮", fPin:"📌 钉住", fAsk:"❓ 提问",
     prev:"上一页", next:"下一页", pageInput:"输入页码后回车跳转",
-    setTitle:"设置", setIntro:"本阅读器调用 Google Gemini 的免费额度。Key 只存在你本机浏览器，不上传任何服务器。",
-    setKeyHow:"免费拿 Key（30 秒）", setKeySteps:'1. 打开 <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a> 用谷歌账号登录；2. 点 “Create API key”，复制 Key；3. 粘贴到下面保存。',
-    setKey:"API Key", setKeyPh:"粘贴 AIza... 开头的 Key", setModel:"模型（免费层，额度从高到低）", setModelCustom:"自定义模型名，如 gemini-3-pro-preview",
-    setModelTip:"提示：若提示「quota exceeded / limit: 0」，多半是该模型免费层无额度或当天用超，换额度更高的模型或隔一会再试。",
-    setLang:"语言 / Language", cancel:"取消", save:"保存",
+    setTitle:"设置", setIntro:"默认用 Google Gemini（免费、较稳）。也支持 OpenRouter——粘哪种 Key 就自动用哪种。Key 只存本机，不上传。",
+    setKeyHow:"免费拿 Key", setKeySteps:'Gemini：打开 <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a> 登录后 Create API key。或 OpenRouter：<a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a>（邮箱注册、免费）。复制粘到下面。',
+    setKey:"API Key", setKeyPh:"粘贴 Gemini(AIza...) 或 OpenRouter(sk-or...) 的 Key", setModel:"模型", setModelCustom:"自定义模型，如 nvidia/nemotron-3-ultra:free",
+    setModelTip:"提示：粘 Gemini Key 用 Gemini，粘 OpenRouter Key 用其免费模型（列表自动更新）。任一繁忙会自动切换备用。截图问图请选支持看图(👁)的模型。",
+    setStyle:"回答风格", setLang:"语言 / Language", cancel:"取消", save:"保存",
     chatGreet:"你好！选中书里的文字可以解释/翻译/总结/高亮；也能在下面切换范围问「当前页」或「整本书」。",
     thinking:"思考中…", errPrefix:"出错：", netErr:"网络错误：", noReturn:"(无返回)", copy:"📋 复制", copied:"✓ 已复制", searchPh:"搜索本书文字…", searchUnit:"页",
     needKey:"请先在设置里填入免费 API Key。", findThinking:"AI 正在通读全书定位…",
@@ -334,11 +344,11 @@ const I18N={
     close:"Close", askPh:"Ask me anything…", send:"Send", explainPh:"Ask about this passage — or send empty for a plain explanation",
     fExplain:"💡 Explain", fTranslate:"🌐 Translate", fSummary:"📝 Summary", fHighlight:"🖍 Highlight", fPin:"📌 Pin", fAsk:"❓ Ask",
     prev:"Previous page", next:"Next page", pageInput:"Type a page number and press Enter",
-    setTitle:"Settings", setIntro:"This reader uses Google Gemini's free tier. Your key is stored only in your browser and never uploaded.",
-    setKeyHow:"Get a free key (30s)", setKeySteps:'1. Open <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a> and sign in; 2. Click “Create API key” and copy it; 3. Paste below and save.',
-    setKey:"API Key", setKeyPh:"Paste your key (starts with AIza...)", setModel:"Model (free tier, highest quota first)", setModelCustom:"Custom model name, e.g. gemini-3-pro-preview",
-    setModelTip:"Tip: a “quota exceeded / limit: 0” error usually means that model has no free quota or you hit the daily cap — switch to a higher-quota model or try again later.",
-    setLang:"语言 / Language", cancel:"Cancel", save:"Save",
+    setTitle:"Settings", setIntro:"Uses Google Gemini by default (free, fairly reliable). OpenRouter is also supported — whichever key you paste is used automatically. Your key stays in your browser only.",
+    setKeyHow:"Get a free key", setKeySteps:'Gemini: open <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a> and Create API key. Or OpenRouter: <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a> (free email sign-up). Paste it below.',
+    setKey:"API Key", setKeyPh:"Paste a Gemini (AIza...) or OpenRouter (sk-or...) key", setModel:"Model", setModelCustom:"Custom model, e.g. nvidia/nemotron-3-ultra:free",
+    setModelTip:"Tip: a Gemini key uses Gemini; an OpenRouter key uses its free models (list auto-updates). Busy models auto-switch to a backup. For asking about a snippet image, pick a vision (👁) model.",
+    setStyle:"Answer style", setLang:"语言 / Language", cancel:"Cancel", save:"Save",
     chatGreet:"Hi! Select any text to explain / translate / summarize / highlight it, or switch scope below to ask about this page or the whole book.",
     thinking:"Thinking…", errPrefix:"Error: ", netErr:"Network error: ", noReturn:"(no response)", copy:"📋 Copy", copied:"✓ Copied", searchPh:"Search in book…", searchUnit:"pgs",
     needKey:"Please add a free API key in Settings first.", findThinking:"AI is scanning the book…",
@@ -354,15 +364,23 @@ const I18N={
     pTranslate:"Translate the following text into English:", pSummary:"Summarize the core idea of the following text in one or two sentences:"
   }
 };
+const STYLES={
+  concise:{ sys:'Be very concise and direct — straight to the point with the minimum words needed. Add a short concrete example only when it genuinely helps understanding.' },
+  balanced:{ sys:'Get straight to the point and help the reader understand. Give a concrete example when it aids understanding. Keep it reasonably brief — no filler.' },
+  detailed:{ sys:'Explain clearly and thoroughly with step-by-step reasoning and several concrete examples, while staying relevant.' }
+};
+const providerOf=k=>String(k||'').startsWith('sk-or')?'openrouter':'gemini';
 const cfg = {
   key:localStorage.getItem('air_key')||'',
   model:localStorage.getItem('air_model')||'gemini-2.5-flash-lite',
   lang:localStorage.getItem('air_lang')||'中文',
   theme:localStorage.getItem('air_theme')||'light',
-  zoom:parseFloat(localStorage.getItem('air_zoom')||'1')
+  zoom:parseFloat(localStorage.getItem('air_zoom')||'1'),
+  style:localStorage.getItem('air_style')||'balanced'
 };
 document.body.dataset.theme=cfg.theme;
-if(/^gemini-2\.0/.test(cfg.model)){ cfg.model='gemini-2.5-flash-lite'; localStorage.setItem('air_model',cfg.model); }
+// 模型与当前 Key 的供应商对不上时，重置成该供应商的默认模型
+if(providerOf(cfg.key)==='gemini' && !/^gemini/i.test(cfg.model)){ cfg.model='gemini-2.5-flash-lite'; localStorage.setItem('air_model',cfg.model); }
 function uiLang(){ return cfg.lang==='English'?'en':'zh'; }
 function t(k){ return I18N[uiLang()][k]; }
 function applyI18n(){
@@ -392,7 +410,7 @@ function dbDel(s,k){return new Promise((res,rej)=>{const r=tx(s,'readwrite').del
 let pdfDoc=null, curBook=null, curState=null, baseScale=1, placeholders=[], allText=null, pageTexts=null, currentPage=1, selText="", selGroups=null, saveTimer=null, io=null, pendingImage=null, snipActive=false, snipBox=null, snipSX=0, snipSY=0, selRect=null, explainPending=false, snipPage=0, curScale=1, searchPages=[], searchIdx=0, searchTerm='';
 
 (async()=>{
-  applyI18n();
+  applyI18n(); ensureFreeModels();
   try{ DB=await openDB(); }
   catch(e){ idbOK=false; const b=$('#banner'); b.textContent=t('banner'); b.style.display='block'; }
   await renderShelf();
@@ -442,13 +460,22 @@ async function makeCover(doc){
 }
 async function delBook(id){ if(!confirm(t('delConfirm')))return; await dbDel('books',id);await dbDel('files',id);await dbDel('state',id); renderShelf(); }
 function escapeHtml(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
-function inlineMd(s){ s=escapeHtml(s); s=s.replace(/`([^`]+)`/g,'<code>$1</code>'); s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>'); s=s.replace(/__([^_]+)__/g,'<strong>$1</strong>'); s=s.replace(/(^|[^*])\*([^*\n]+)\*/g,'$1<em>$2</em>'); return s; }
+function inlineMd(s){ s=escapeHtml(s); s=s.replace(/`([^`]+)`/g,'<code>$1</code>'); s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>'); s=s.replace(/__([^_]+)__/g,'<strong>$1</strong>'); s=s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>'); s=s.replace(/(^|[^*])\*([^*\n]+)\*/g,'$1<em>$2</em>'); return s; }
 function mdToHtml(text){
   const lines=(text||'').replace(/```[a-z]*\n?/gi,'').split('\n'); let html='', para=[];
   const flush=()=>{ if(para.length){ html+='<p>'+para.join('<br>')+'</p>'; para=[]; } };
-  for(let raw of lines){ let m;
+  const parseRow=r=>r.replace(/^\s*\|/,'').replace(/\|\s*$/,'').split('|').map(c=>c.trim());
+  for(let i=0;i<lines.length;i++){ let raw=lines[i],m;
     if(/^\s*$/.test(raw)){ flush(); continue; }
+    if(/\|/.test(raw) && i+1<lines.length && /\|/.test(lines[i+1]) && /^\s*\|?[\s:|-]*-{2,}[\s:|-]*$/.test(lines[i+1])){
+      flush(); const head=parseRow(raw); i++;
+      let tb='<table class="mdt"><thead><tr>'+head.map(h=>'<th>'+inlineMd(h)+'</th>').join('')+'</tr></thead><tbody>';
+      while(i+1<lines.length && /\|/.test(lines[i+1]) && !/^\s*$/.test(lines[i+1])){ i++; const c=parseRow(lines[i]); tb+='<tr>'+c.map(x=>'<td>'+inlineMd(x)+'</td>').join('')+'</tr>'; }
+      tb+='</tbody></table>'; html+=tb; continue;
+    }
+    if(/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(raw)){ flush(); html+='<hr>'; continue; }
     if(m=raw.match(/^\s*(#{1,6})\s+(.*)/)){ flush(); html+='<div class="mdh">'+inlineMd(m[2])+'</div>'; continue; }
+    if(m=raw.match(/^\s*>\s?(.*)/)){ flush(); html+='<blockquote class="mdq">'+inlineMd(m[1])+'</blockquote>'; continue; }
     if(m=raw.match(/^(\s*)[\*\-•]\s+(.*)/)){ flush(); const lv=Math.min(3,Math.floor(m[1].length/2)); html+='<div class="mdli" style="padding-left:'+(10+lv*16)+'px">• '+inlineMd(m[2])+'</div>'; continue; }
     if(m=raw.match(/^(\s*)(\d+)[\.\)]\s+(.*)/)){ flush(); const lv=Math.min(3,Math.floor(m[1].length/2)); html+='<div class="mdli" style="padding-left:'+(10+lv*16)+'px">'+m[2]+'. '+inlineMd(m[3])+'</div>'; continue; }
     para.push(inlineMd(raw)); }
@@ -582,12 +609,7 @@ bar.querySelectorAll('button').forEach(b=>b.onclick=()=>{
 });
 
 /* ---------- inline translate popover ---------- */
-async function geminiText(prompt){
-  const url='https://generativelanguage.googleapis.com/v1beta/models/'+cfg.model+':generateContent?key='+encodeURIComponent(cfg.key);
-  const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
-  const data=await res.json(); if(data.error)throw new Error(data.error.message);
-  return data?.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||'';
-}
+async function geminiText(prompt){ return await llmGenerate(null,prompt,null); }
 async function translateInline(text){
   showTransPop(t('thinking'));
   const tl = cfg.lang==='English' ? 'en' : 'zh-CN';
@@ -726,7 +748,7 @@ function jumpToPage(num){ const w=placeholders[num]; if(w){ $('#viewer').scrollT
 
 /* ---------- go to page ---------- */
 function goToInput(){ if(!pdfDoc)return; let n=parseInt($('#pageInput').value,10); if(isNaN(n))return; n=Math.max(1,Math.min(pdfDoc.numPages,n)); $('#pageInput').value=n; jumpToPage(n); $('#pageInput').blur(); }
-$('#pageInput').addEventListener('keydown',e=>{ if(e.key==='Enter')goToInput(); });
+$('#pageInput').addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)goToInput(); });
 $('#pageInput').addEventListener('change',goToInput);
 $('#prevPg').onclick=()=>jumpToPage(Math.max(1,currentPage-1));
 $('#nextPg').onclick=()=>jumpToPage(Math.min(pdfDoc.numPages,currentPage+1));
@@ -779,7 +801,7 @@ $('#sendBtn').onclick=()=>{
   else if(scope==='page') ask(q, currentPageText());
   else ask(q, '', true);
 };
-$('#askInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('#sendBtn').click();});
+$('#askInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)$('#sendBtn').click();});
 function currentPageText(){ const tl=placeholders[currentPage]&&placeholders[currentPage].querySelector('.textLayer'); return tl?tl.innerText.replace(/\n+/g,' ').trim():''; }
 async function buildPageTexts(){ if(pageTexts)return pageTexts; pageTexts=['']; for(let i=1;i<=pdfDoc.numPages;i++){ const pg=await pdfDoc.getPage(i); const tc=await pg.getTextContent(); pageTexts[i]=tc.items.map(x=>x.str).join(' '); } return pageTexts; }
 async function buildAllText(){ if(allText)return; await buildPageTexts(); allText=pageTexts.slice(1).join('\n').slice(0,120000); }
@@ -791,7 +813,7 @@ $('#searchPrev').onclick=()=>nextSearch(-1);
 $('#searchNext').onclick=()=>nextSearch(1);
 $('#searchInput').addEventListener('keydown',e=>{
   if(e.key==='Escape'){ $('#searchClose').click(); return; }
-  if(e.key==='Enter'){ const v=$('#searchInput').value.trim().toLowerCase(); if(v&&v===searchTerm&&searchPages.length) nextSearch(e.shiftKey?-1:1); else doSearch(); }
+  if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229){ const v=$('#searchInput').value.trim().toLowerCase(); if(v&&v===searchTerm&&searchPages.length) nextSearch(e.shiftKey?-1:1); else doSearch(); }
 });
 function clearSearch(){ document.querySelectorAll('.shit').forEach(n=>n.remove()); }
 async function doSearch(){
@@ -831,6 +853,68 @@ function highlightSearch(num){
   if(first) setTimeout(()=>first.scrollIntoView({block:'center',behavior:'smooth'}),40);
 }
 
+const OR_TEXT=['meta-llama/llama-3.3-70b-instruct:free','deepseek/deepseek-chat-v3-0324:free','qwen/qwen3-235b-a22b:free'];
+const OR_VISION=['meta-llama/llama-3.2-11b-vision-instruct:free','qwen/qwen2.5-vl-72b-instruct:free'];
+let FREE_TEXT=null, FREE_VISION=null;
+async function ensureFreeModels(){
+  if(FREE_TEXT) return;
+  try{ const c=JSON.parse(localStorage.getItem('air_freemodels')||'null'); if(c&&Date.now()-c.t<864e5){ FREE_TEXT=c.text; FREE_VISION=c.vision; return; } }catch(_){}
+  try{
+    const res=await fetch('https://openrouter.ai/api/v1/models'); const data=await res.json(); const ms=data.data||data||[];
+    const isFree=m=>{const p=m.pricing||{}; return String(p.prompt)==='0'&&String(p.completion??'0')==='0';};
+    const isImg=m=>{const a=m.architecture||{}; const md=a.input_modalities||[]; return md.includes('image')||/image|multimodal/i.test(a.modality||'');};
+    const pref=id=>{const s=id.toLowerCase(); const ks=['hermes','glm','nemotron-3-ultra','deepseek','llama-4','llama-3.3','qwen3','qwen-2.5','qwen2.5','mistral','gemini','gemma','nemotron','llama']; let r=0; ks.forEach((k,i)=>{if(s.includes(k))r=Math.max(r,30-i);}); if(/rerank|content-safety|safety|guard|embed|-code|north-mini-code|uncensored|nano-omni|nano|tiny|1b|3b/.test(s))r-=25; return r;};
+    const free=ms.filter(isFree);
+    FREE_TEXT=free.map(m=>m.id).sort((a,b)=>pref(b)-pref(a));
+    FREE_VISION=free.filter(isImg).map(m=>m.id).sort((a,b)=>pref(b)-pref(a));
+    if(!FREE_TEXT.length) FREE_TEXT=OR_TEXT;
+    if(!FREE_VISION.length) FREE_VISION=OR_VISION;
+    localStorage.setItem('air_freemodels',JSON.stringify({t:Date.now(),text:FREE_TEXT,vision:FREE_VISION}));
+  }catch(_){ FREE_TEXT=OR_TEXT; FREE_VISION=OR_VISION; }
+}
+const GEMINI_MODELS=['gemini-2.5-flash-lite','gemini-2.5-flash','gemini-flash-latest'];
+async function llmGenerate(sys, userText, image){
+  return providerOf(cfg.key)==='openrouter' ? openRouterGen(sys,userText,image) : geminiGen(sys,userText,image);
+}
+async function geminiGen(sys, userText, image){
+  const models=[...new Set([/^gemini/i.test(cfg.model)?cfg.model:null, ...GEMINI_MODELS])].filter(Boolean);
+  const parts=[{text:userText}]; if(image)parts.push({inline_data:{mime_type:'image/png',data:image.split(',')[1]}});
+  const body={contents:[{parts}]}; if(sys)body.system_instruction={parts:[{text:sys}]};
+  let lastErr='';
+  for(const model of models){ for(let a=0;a<2;a++){
+    try{
+      const res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent?key='+encodeURIComponent(cfg.key),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const data=await res.json();
+      if(data.error){ const msg=data.error.message||''; lastErr=msg; const transient=[429,500,503].includes(data.error.code)||/high demand|overload|unavailable|exhaust|rate|try again|temporar/i.test(msg); if(transient){await new Promise(r=>setTimeout(r,650*(a+1)));continue;} break; }
+      const out=data?.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||''; if(out)return out; lastErr='empty'; break;
+    }catch(e){ lastErr=e.message||String(e); await new Promise(r=>setTimeout(r,400)); }
+  } }
+  throw new Error(lastErr||'failed');
+}
+async function openRouterGen(sys, userText, image){
+  await ensureFreeModels();
+  const content = image ? [{type:'text',text:userText||''},{type:'image_url',image_url:{url:image}}] : userText;
+  const messages=[]; if(sys)messages.push({role:'system',content:sys}); messages.push({role:'user',content});
+  const pool=(image?FREE_VISION:FREE_TEXT)||[];
+  const models = [...new Set([/\//.test(cfg.model)?cfg.model:null,...pool])].filter(Boolean).slice(0,6);
+  let lastErr='';
+  for(let pass=0;pass<2;pass++){
+    for(const model of models){
+      try{
+        const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',
+          headers:{'Authorization':'Bearer '+cfg.key,'Content-Type':'application/json'},
+          body:JSON.stringify({model,messages})});
+        const data=await res.json();
+        if(data.error){ lastErr=(data.error.message||JSON.stringify(data.error))+' ['+model.split('/').pop()+']'; continue; }
+        let out=data?.choices?.[0]?.message?.content||'';
+        if(Array.isArray(out)) out=out.map(c=>c.text||'').join('');
+        if(out) return out; lastErr='empty';
+      }catch(e){ lastErr=e.message||String(e); }
+    }
+    await new Promise(r=>setTimeout(r,800));
+  }
+  throw new Error(lastErr||'failed');
+}
 async function ask(instruction, context, isBook, image){
   if(!cfg.key){ openModal(); openPanel('chat'); addMsgEl('ai',t('needKey'),null,false,null,true); return; }
   openPanel('chat');
@@ -839,25 +923,19 @@ async function ask(instruction, context, isBook, image){
   addMsgEl('me', instruction.replace(/[:：]\s*$/,''), '', true, image);
   const loading=addMsgEl('ai',t('thinking'),null,false,null,true);
   const setAI=x=>{ loading.querySelector('.mbody').innerHTML=mdToHtml(x); };
-  const sys='You are a reading assistant inside an e-reader. The user is reading a book/PDF, and every question relates to that book or the selected text/image — interpret it in that context and stay on topic. Answer in '+cfg.lang+'. Match answer length to the question: keep simple questions to 1-3 sentences, and only go longer or add an example when the concept genuinely needs it. Be concise and direct. Use light Markdown only when it actually helps.';
+  const sys='You are a reading assistant inside an e-reader. Every question relates to the book/PDF the user is reading (the selected text or image) — stay on that topic. Answer in '+cfg.lang+'. '+(STYLES[cfg.style]||STYLES.balanced).sys+' Use light Markdown only when it actually helps.';
   const userText = (ctx && !image) ? (instruction+'\n\n'+ctx) : instruction;
-  const parts=[{text:userText}];
-  if(image) parts.push({inline_data:{mime_type:'image/png', data:image.split(',')[1]}});
   try{
-    const url='https://generativelanguage.googleapis.com/v1beta/models/'+cfg.model+':generateContent?key='+encodeURIComponent(cfg.key);
-    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'}, body:JSON.stringify({system_instruction:{parts:[{text:sys}]},contents:[{parts}]})});
-    const data=await res.json();
-    if(data.error){ setAI(t('errPrefix')+data.error.message); return; }
-    const out=data?.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||t('noReturn');
-    setAI(out); if(curState){ curState.chat.push({role:'ai',text:out,sub:null}); saveState(); }
-  }catch(err){ setAI(t('netErr')+err.message); }
+    const out=await llmGenerate(sys, userText, image);
+    setAI(out||t('noReturn')); if(curState){ curState.chat.push({role:'ai',text:out,sub:null}); saveState(); }
+  }catch(err){ setAI(t('errPrefix')+err.message); }
   $('#tab-chat').scrollTop=$('#tab-chat').scrollHeight;
 }
 
 /* ---------- AI 找页 / find page ---------- */
 let findShown=new Set();
 $('#findBtn').onclick=()=>doFind(false);
-$('#findInput').addEventListener('keydown',e=>{if(e.key==='Enter')doFind(false);});
+$('#findInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing&&e.keyCode!==229)doFind(false);});
 function addFindResult(box,it){
   const p=Math.max(1,Math.min(pdfDoc.numPages,it.page));
   const d=document.createElement('div'); d.className='bm';
@@ -886,11 +964,7 @@ async function doFind(more){
   const excl=findShown.size? (' Do NOT return any of these already-shown pages: '+[...findShown].join(', ')+'.'):'';
   const sys='You locate pages in a book. Given the user query and page-tagged text, return the most relevant pages by relevance.'+excl+' Output ONLY a JSON array, each item {"page":number,"reason":"one short sentence in '+cfg.lang+' on what that page covers"}, max 5 items, no other text.';
   try{
-    const url='https://generativelanguage.googleapis.com/v1beta/models/'+cfg.model+':generateContent?key='+encodeURIComponent(cfg.key);
-    const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'}, body:JSON.stringify({system_instruction:{parts:[{text:sys}]},contents:[{parts:[{text:'Query: '+q+'\n\n'+ctx}]}]})});
-    const data=await res.json();
-    if(data.error){ box.innerHTML='<div class="empty-hint">'+t('errPrefix')+escapeHtml(data.error.message)+'</div>'; return; }
-    let out=(data?.candidates?.[0]?.content?.parts?.map(p=>p.text).join('')||'').trim().replace(/```json/gi,'').replace(/```/g,'').trim();
+    let out=(await llmGenerate(sys,'Query: '+q+'\n\n'+ctx,null)||'').trim().replace(/```json/gi,'').replace(/```/g,'').trim();
     let items=[]; try{ items=JSON.parse(out); }catch(e){ const m=out.match(/\d+/g); if(m)items=[...new Set(m.map(Number))].slice(0,5).map(p=>({page:p,reason:''})); }
     items=items.filter(it=>!findShown.has(Math.max(1,Math.min(pdfDoc.numPages,it.page))));
     if(!more) box.innerHTML=''; else { const old=box.querySelector('button'); if(old)old.remove(); }
@@ -901,12 +975,23 @@ async function doFind(more){
 }
 
 /* ---------- settings ---------- */
-const KNOWN_MODELS=[...$('#model').options].map(o=>o.value);
-function openModal(){
-  $('#apiKey').value=cfg.key; $('#lang').value=cfg.lang;
-  if(KNOWN_MODELS.includes(cfg.model)&&cfg.model!=='__custom'){ $('#model').value=cfg.model; $('#modelCustom').style.display='none'; $('#modelCustom').value=''; }
-  else { $('#model').value='__custom'; $('#modelCustom').style.display='block'; $('#modelCustom').value=cfg.model; }
+async function populateModels(){
+  const prov=providerOf($('#apiKey').value||cfg.key); const sel=$('#model');
+  let list;
+  if(prov==='openrouter'){ await ensureFreeModels(); list=(FREE_TEXT&&FREE_TEXT.length)?FREE_TEXT.slice(0,15):OR_TEXT.slice(); }
+  else list=['gemini-2.5-flash-lite','gemini-2.5-flash','gemini-2.5-pro','gemini-flash-latest'];
+  sel.innerHTML='';
+  list.forEach(id=>{ const o=document.createElement('option'); o.value=id; o.textContent=((prov==='openrouter'&&FREE_VISION&&FREE_VISION.includes(id))?'👁 ':'')+id.replace(':free',''); sel.appendChild(o); });
+  if(cfg.model&&!list.includes(cfg.model)){ const o=document.createElement('option'); o.value=cfg.model; o.textContent=cfg.model.replace(':free',''); sel.appendChild(o); }
+  const c=document.createElement('option'); c.value='__custom'; c.textContent='⌨ 自定义 / Custom…'; sel.appendChild(c);
+  sel.value = list.includes(cfg.model)?cfg.model:list[0];
+}
+$('#apiKey').addEventListener('input',()=>{ populateModels(); });
+async function openModal(){
+  $('#apiKey').value=cfg.key; $('#lang').value=cfg.lang; $('#style').value=cfg.style;
+  $('#modelCustom').style.display='none'; $('#modelCustom').value='';
   $('#modal').style.display='flex';
+  await populateModels();
 }
 $('#model').onchange=()=>{ const c=$('#model').value==='__custom'; $('#modelCustom').style.display=c?'block':'none'; if(c)$('#modelCustom').focus(); };
 $('#settingsBtn').onclick=openModal;
@@ -914,8 +999,8 @@ $('#closeModal').onclick=()=>$('#modal').style.display='none';
 $('#saveSettings').onclick=()=>{
   cfg.key=$('#apiKey').value.trim();
   cfg.model = $('#model').value==='__custom' ? ($('#modelCustom').value.trim()||'gemini-2.5-flash-lite') : $('#model').value;
-  cfg.lang=$('#lang').value;
-  localStorage.setItem('air_key',cfg.key); localStorage.setItem('air_model',cfg.model); localStorage.setItem('air_lang',cfg.lang);
+  cfg.lang=$('#lang').value; cfg.style=$('#style').value;
+  localStorage.setItem('air_key',cfg.key); localStorage.setItem('air_model',cfg.model); localStorage.setItem('air_lang',cfg.lang); localStorage.setItem('air_style',cfg.style);
   $('#modal').style.display='none'; applyLanguage();
 };
 </script>
