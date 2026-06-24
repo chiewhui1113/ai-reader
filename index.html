@@ -118,6 +118,14 @@
   .refItem img.full{height:auto;cursor:zoom-out}
   #rdResize{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:ew-resize;z-index:5}
   #sheetBackdrop{display:none}
+  #searchBar{display:none;position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:75;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.2);padding:6px;gap:5px;align-items:center}
+  #searchBar.open{display:flex}
+  #searchBar input{border:1px solid var(--line);border-radius:7px;padding:6px 9px;font-size:14px;background:var(--panel);color:var(--ink);width:190px}
+  #searchBar button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:3px 8px;line-height:1}
+  #searchBar button:hover{color:var(--accent)}
+  #searchCount{font-size:12px;color:var(--muted);min-width:50px;text-align:center;white-space:nowrap}
+  .shit{position:absolute;background:rgba(255,160,0,.5);border-radius:1px;mix-blend-mode:multiply;pointer-events:none}
+  [data-theme="dark"] .shit{mix-blend-mode:screen;background:rgba(255,200,0,.4)}
   #snipBox{position:fixed;border:2px solid var(--accent);background:rgba(79,70,229,.16);z-index:80;pointer-events:none;border-radius:2px}
   body.snip #viewer{cursor:crosshair}
   body.snip{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
@@ -160,6 +168,13 @@
 <div id="banner"></div>
 <div id="snipHint"></div>
 <div id="sheetBackdrop"></div>
+<div id="searchBar">
+  <input id="searchInput" data-i18n-ph="searchPh">
+  <span id="searchCount"></span>
+  <button id="searchPrev" title="上一处">‹</button>
+  <button id="searchNext" title="下一处">›</button>
+  <button id="searchClose" title="关闭">×</button>
+</div>
 <header>
   <h1 data-i18n="appName">📖 问读</h1>
   <button class="btn" id="shelfBtn" data-i18n="shelf">书架</button>
@@ -174,6 +189,7 @@
   <span id="readerTools" style="display:none">
     <button class="btn desk-only" id="zoomOut">A−</button>
     <button class="btn desk-only" id="zoomIn">A+</button>
+    <button class="btn" id="searchBtn" title="搜索 / Search">🔍</button>
     <button class="btn" id="snipBtn" title="截图问AI / Snip & ask">📷<span class="bmtxt" data-i18n="snipWord"> 截取</span></button>
     <button class="btn" id="bmBtn" title="书签 / Bookmark">🔖<span class="bmtxt" data-i18n="bmWord"> 书签</span></button>
   </span>
@@ -298,7 +314,7 @@ const I18N={
     setModelTip:"提示：若提示「quota exceeded / limit: 0」，多半是该模型免费层无额度或当天用超，换额度更高的模型或隔一会再试。",
     setLang:"语言 / Language", cancel:"取消", save:"保存",
     chatGreet:"你好！选中书里的文字可以解释/翻译/总结/高亮；也能在下面切换范围问「当前页」或「整本书」。",
-    thinking:"思考中…", errPrefix:"出错：", netErr:"网络错误：", noReturn:"(无返回)", copy:"📋 复制", copied:"✓ 已复制",
+    thinking:"思考中…", errPrefix:"出错：", netErr:"网络错误：", noReturn:"(无返回)", copy:"📋 复制", copied:"✓ 已复制", searchPh:"搜索本书文字…", searchUnit:"页",
     needKey:"请先在设置里填入免费 API Key。", findThinking:"AI 正在通读全书定位…",
     findNone:"没找到明显相关的页，换个说法再试试。", findMore:"🔄 都不对？找更多", findNoMore:"没有更多相关页了。",
     notesEmpty:"选中文字后点 🖍 高亮，可加笔记。这里会列出本书所有高亮和笔记。",
@@ -324,7 +340,7 @@ const I18N={
     setModelTip:"Tip: a “quota exceeded / limit: 0” error usually means that model has no free quota or you hit the daily cap — switch to a higher-quota model or try again later.",
     setLang:"语言 / Language", cancel:"Cancel", save:"Save",
     chatGreet:"Hi! Select any text to explain / translate / summarize / highlight it, or switch scope below to ask about this page or the whole book.",
-    thinking:"Thinking…", errPrefix:"Error: ", netErr:"Network error: ", noReturn:"(no response)", copy:"📋 Copy", copied:"✓ Copied",
+    thinking:"Thinking…", errPrefix:"Error: ", netErr:"Network error: ", noReturn:"(no response)", copy:"📋 Copy", copied:"✓ Copied", searchPh:"Search in book…", searchUnit:"pgs",
     needKey:"Please add a free API key in Settings first.", findThinking:"AI is scanning the book…",
     findNone:"No clearly relevant page found. Try rephrasing.", findMore:"🔄 Not it? Find more", findNoMore:"No more relevant pages.",
     notesEmpty:"Select text and tap 🖍 Highlight to add a note. All highlights and notes for this book show up here.",
@@ -373,7 +389,7 @@ function dbAll(s){return new Promise((res,rej)=>{const r=tx(s,'readonly').getAll
 function dbPut(s,v){return new Promise((res,rej)=>{const r=tx(s,'readwrite').put(v);r.onsuccess=()=>res();r.onerror=()=>rej(r.error);});}
 function dbDel(s,k){return new Promise((res,rej)=>{const r=tx(s,'readwrite').delete(k);r.onsuccess=()=>res();r.onerror=()=>rej(r.error);});}
 
-let pdfDoc=null, curBook=null, curState=null, baseScale=1, placeholders=[], allText=null, pageTexts=null, currentPage=1, selText="", selGroups=null, saveTimer=null, io=null, pendingImage=null, snipActive=false, snipBox=null, snipSX=0, snipSY=0, selRect=null, explainPending=false, snipPage=0;
+let pdfDoc=null, curBook=null, curState=null, baseScale=1, placeholders=[], allText=null, pageTexts=null, currentPage=1, selText="", selGroups=null, saveTimer=null, io=null, pendingImage=null, snipActive=false, snipBox=null, snipSX=0, snipSY=0, selRect=null, explainPending=false, snipPage=0, curScale=1, searchPages=[], searchIdx=0, searchTerm='';
 
 (async()=>{
   applyI18n();
@@ -465,7 +481,7 @@ async function layoutPages(){
   viewer.innerHTML=''; placeholders=[];
   const first=await pdfDoc.getPage(1); const w1=first.getViewport({scale:1}).width;
   baseScale=Math.max(.5,(viewer.clientWidth-32)/w1);
-  const scale=baseScale*cfg.zoom;
+  const scale=baseScale*cfg.zoom; curScale=scale;
   for(let i=1;i<=pdfDoc.numPages;i++){
     const pg=await pdfDoc.getPage(i); const vp=pg.getViewport({scale});
     const wrap=document.createElement('div'); wrap.className='pageWrap placeholder';
@@ -767,6 +783,53 @@ $('#askInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('#sendBtn').c
 function currentPageText(){ const tl=placeholders[currentPage]&&placeholders[currentPage].querySelector('.textLayer'); return tl?tl.innerText.replace(/\n+/g,' ').trim():''; }
 async function buildPageTexts(){ if(pageTexts)return pageTexts; pageTexts=['']; for(let i=1;i<=pdfDoc.numPages;i++){ const pg=await pdfDoc.getPage(i); const tc=await pg.getTextContent(); pageTexts[i]=tc.items.map(x=>x.str).join(' '); } return pageTexts; }
 async function buildAllText(){ if(allText)return; await buildPageTexts(); allText=pageTexts.slice(1).join('\n').slice(0,120000); }
+
+/* ---------- in-book text search ---------- */
+$('#searchBtn').onclick=()=>{ $('#searchBar').classList.add('open'); const i=$('#searchInput'); i.focus(); i.select(); };
+$('#searchClose').onclick=()=>{ $('#searchBar').classList.remove('open'); clearSearch(); $('#searchCount').textContent=''; };
+$('#searchPrev').onclick=()=>nextSearch(-1);
+$('#searchNext').onclick=()=>nextSearch(1);
+$('#searchInput').addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ $('#searchClose').click(); return; }
+  if(e.key==='Enter'){ const v=$('#searchInput').value.trim().toLowerCase(); if(v&&v===searchTerm&&searchPages.length) nextSearch(e.shiftKey?-1:1); else doSearch(); }
+});
+function clearSearch(){ document.querySelectorAll('.shit').forEach(n=>n.remove()); }
+async function doSearch(){
+  clearSearch();
+  const term=$('#searchInput').value.trim().toLowerCase(); searchTerm=term; searchPages=[]; searchIdx=0;
+  if(!term||!pdfDoc){ $('#searchCount').textContent=''; return; }
+  await buildPageTexts();
+  for(let i=1;i<pageTexts.length;i++){ if(pageTexts[i].toLowerCase().includes(term)) searchPages.push(i); }
+  if(!searchPages.length){ $('#searchCount').textContent='0'; return; }
+  await gotoSearch();
+}
+async function gotoSearch(){
+  const num=searchPages[searchIdx];
+  await renderPage(num,curScale);
+  jumpToPage(num);
+  $('#searchCount').textContent=(searchIdx+1)+'/'+searchPages.length+' '+t('searchUnit');
+  await new Promise(r=>setTimeout(r,120));
+  highlightSearch(num);
+}
+function nextSearch(dir){ if(!searchPages.length)return; searchIdx=(searchIdx+dir+searchPages.length)%searchPages.length; gotoSearch(); }
+function highlightSearch(num){
+  clearSearch();
+  const wrap=placeholders[num]; if(!wrap)return; const tl=wrap.querySelector('.textLayer'), hl=wrap.querySelector('.hlLayer'); if(!tl||!hl)return;
+  const pr=wrap.getBoundingClientRect(); let first=null;
+  tl.querySelectorAll('span').forEach(span=>{
+    const node=span.firstChild; if(!node||node.nodeType!==3)return;
+    const low=span.textContent.toLowerCase(); if(!low.includes(searchTerm))return;
+    let from=0,idx;
+    while((idx=low.indexOf(searchTerm,from))!==-1){
+      const rg=document.createRange(); rg.setStart(node,idx); rg.setEnd(node,idx+searchTerm.length);
+      for(const r of rg.getClientRects()){ const d=document.createElement('div'); d.className='shit';
+        d.style.left=((r.left-pr.left)/pr.width*100)+'%'; d.style.top=((r.top-pr.top)/pr.height*100)+'%';
+        d.style.width=(r.width/pr.width*100)+'%'; d.style.height=(r.height/pr.height*100)+'%'; hl.appendChild(d); if(!first)first=d; }
+      from=idx+searchTerm.length;
+    }
+  });
+  if(first) setTimeout(()=>first.scrollIntoView({block:'center',behavior:'smooth'}),40);
+}
 
 async function ask(instruction, context, isBook, image){
   if(!cfg.key){ openModal(); openPanel('chat'); addMsgEl('ai',t('needKey'),null,false,null,true); return; }
