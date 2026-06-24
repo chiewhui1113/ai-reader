@@ -7,6 +7,8 @@
 
 ### 👉 [打开应用](https://chiewhui1113.github.io/ai-reader/)
 
+![demo](demo.gif)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![单文件](https://img.shields.io/badge/单文件-HTML-orange)
 ![纯前端](https://img.shields.io/badge/100%25-纯前端-success)

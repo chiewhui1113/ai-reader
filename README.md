@@ -7,6 +7,8 @@ No copy-pasting into another tab. No leaving your book.
 
 ### 👉 [Open the app](https://chiewhui1113.github.io/ai-reader/)
 
+![demo](demo.gif)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Single file](https://img.shields.io/badge/single--file-HTML-orange)
 ![100% client-side](https://img.shields.io/badge/100%25-client--side-success)
